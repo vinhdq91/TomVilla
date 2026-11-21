@@ -1,0 +1,42 @@
+---
+import { Icon } from 'astro-icon/components';
+import type { CollectionEntry } from 'astro:content';
+import BookingCard from './BookingCard.astro';
+
+interface Props {
+  content: CollectionEntry<'home'>['data']['stay'];
+  whatsapp: string;
+  email: string;
+}
+const { content, whatsapp, email } = Astro.props;
+---
+
+<section id="stay" class="section pt-4 lg:pt-8">
+  <div class="grid gap-14 lg:grid-cols-12 lg:items-center lg:gap-10">
+    <div class="lg:col-span-7">
+      <p class="eyebrow">{content.eyebrow}</p>
+      <h2 class="mt-4 text-5xl leading-tight">{content.heading}</h2>
+
+      <ol class="relative mt-12 grid grid-cols-2 gap-y-10 sm:grid-cols-4">
+        <!-- connecting line between the circles -->
+        <span class="absolute top-7 right-[12.5%] left-[12.5%] hidden h-px bg-line sm:block" aria-hidden="true"></span>
+        {
+          content.steps.map((step, i) => (
+            <li class="relative flex flex-col items-center px-2 text-center">
+              <span class="flex size-14 items-center justify-center rounded-full bg-olive text-white">
+                <Icon name={`lucide:${step.icon}`} class="size-6" aria-hidden="true" />
+              </span>
+              <span class="mt-4 text-sm text-muted">{String(i + 1).padStart(2, '0')}</span>
+              <h3 class="mt-1 font-serif text-2xl">{step.title}</h3>
+              <p class="mt-2 text-xs leading-relaxed text-muted">{step.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <div class="lg:col-span-5">
+      <BookingCard title={content.bookingTitle} text={content.bookingText} whatsapp={whatsapp} email={email} />
+    </div>
+  </div>
+</section>

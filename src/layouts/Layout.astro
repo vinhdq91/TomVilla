@@ -1,0 +1,78 @@
+---
+import '../styles/global.css';
+import { getEntry } from 'astro:content';
+import Sidebar from '../components/Sidebar.astro';
+import Header from '../components/Header.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const site = (await getEntry('site', 'site'))!.data;
+const title = Astro.props.title ?? `${site.name} · ${site.tagline}`;
+const description = Astro.props.description ?? site.seoDescription;
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+
+// Helps Google show the villa as a place to stay.
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'LodgingBusiness',
+  name: site.name,
+  description: site.seoDescription,
+  telephone: site.phone,
+  email: site.email,
+  address: { '@type': 'PostalAddress', addressLocality: 'Hoi An', addressCountry: 'VN' },
+  ...(canonical ? { url: canonical } : {}),
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    {site.hideFromSearch && <meta name="robots" content="noindex, nofollow" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta name="theme-color" content="#1e3a2d" />
+    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+  </head>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2">
+      Skip to content
+    </a>
+    <Sidebar />
+    <div class="lg:pl-(--sidebar-w)">
+      <Header name={site.name} />
+      <main id="main">
+        <slot />
+      </main>
+    </div>
+
+    <script>
+      // Highlight the current section in the sidebar while scrolling.
+      const links = new Map<string, HTMLElement>();
+      document.querySelectorAll<HTMLElement>('[data-spy]').forEach((a) => links.set(a.dataset.spy!, a));
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            links.forEach((a) => a.removeAttribute('aria-current'));
+            links.get(entry.target.id)?.setAttribute('aria-current', 'true');
+          }
+        },
+        { rootMargin: '-45% 0px -50% 0px' },
+      );
+      links.forEach((_, id) => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      });
+    </script>
+  </body>
+</html>

@@ -1,43 +1,30 @@
-# Astro Starter Kit: Minimal
+# Tom's House — villa website
 
-```sh
-npm create astro@latest -- --template minimal
-```
+Astro + Tailwind, hosted on Cloudflare. Content is edited in the Keystatic admin panel.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Commands
 
-## 🚀 Project Structure
+| Command | What it does |
+| --- | --- |
+| `npm run admin` | Site **plus admin panel** at http://127.0.0.1:4321/keystatic — use this to edit text, photos and icons |
+| `npm run dev` | Site only, running in Cloudflare's runtime (same as production) |
+| `npm run build` | Build the site into `dist/` |
+| `npm run preview` | Preview the built site |
 
-Inside of your Astro project, you'll see the following folders and files:
+## Where things live
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+| What | Where |
+| --- | --- |
+| Editable content (text, FAQs, contacts) | `src/content/` (YAML, edited via the admin panel) |
+| Photos | `src/assets/images/` (auto-optimised at build time) |
+| Page sections | `src/components/home/` |
+| Colours & fonts | `src/styles/global.css` (`@theme`) |
+| Admin panel fields | `keystatic.config.ts` (keep in sync with `src/content.config.ts`) |
+| Availability (iCal now, D1 later) | `src/lib/booking/availability.ts` |
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Still to do
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- Replace placeholder photos and contact details (WhatsApp, Zalo, email, address)
+- Choose a domain and set `site` in `astro.config.mjs`
+- Push to GitHub and connect Cloudflare Pages
+- Switch Keystatic to GitHub mode so the admin panel works online

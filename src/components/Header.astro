@@ -1,0 +1,86 @@
+---
+import { Icon } from 'astro-icon/components';
+import Logo from './Logo.astro';
+import { sections } from '../lib/nav';
+
+interface Props {
+  name: string;
+}
+const { name } = Astro.props;
+const topLinks = sections.filter((s) => ['villa', 'location', 'faqs', 'contact'].includes(s.id));
+---
+
+<header class="sticky top-0 z-20 border-b border-line/60 bg-cream/95 backdrop-blur lg:static lg:border-0 lg:bg-cream">
+  <div class="flex h-16 items-center justify-between px-6 sm:px-10 lg:h-24 lg:px-16">
+    <a href="#home" class="flex items-center gap-3 text-forest">
+      <Logo class="h-9 w-7 lg:h-12 lg:w-9" />
+      <span class="font-serif text-2xl text-ink lg:text-3xl">{name}</span>
+    </a>
+
+    <nav class="hidden items-center gap-10 text-sm md:flex" aria-label="Main">
+      {topLinks.map((l) => <a href={`#${l.id}`} class="transition-colors hover:text-olive">{l.label}</a>)}
+      <a href="#stay" class="rounded-full bg-forest px-5 py-2.5 text-[0.7rem] uppercase tracking-[0.2em] text-white transition-colors hover:bg-forest-deep">
+        Book Now
+      </a>
+    </nav>
+
+    <button
+      id="menu-open"
+      type="button"
+      class="flex flex-col items-center gap-1 text-[0.65rem] uppercase tracking-widest md:hidden"
+      aria-controls="mobile-menu"
+      aria-expanded="false"
+    >
+      <Icon name="lucide:menu" class="size-6" aria-hidden="true" />
+      Menu
+    </button>
+  </div>
+</header>
+
+<!-- Mobile menu -->
+<div id="mobile-menu" class="fixed inset-0 z-40 hidden flex-col bg-forest px-8 py-6 text-white" role="dialog" aria-modal="true" aria-label="Menu">
+  <div class="flex items-center justify-between">
+    <span class="flex items-center gap-3">
+      <Logo class="h-9 w-7 text-white/80" />
+      <span class="font-serif text-2xl">{name}</span>
+    </span>
+    <button id="menu-close" type="button" class="p-1" aria-label="Close menu">
+      <Icon name="lucide:x" class="size-7" aria-hidden="true" />
+    </button>
+  </div>
+  <nav class="mt-14">
+    <ol class="space-y-6">
+      {
+        sections.map((s, i) => (
+          <li>
+            <a href={`#${s.id}`} class="flex items-baseline gap-5" data-close-menu>
+              <span class="font-serif text-lg text-white/50">{String(i + 1).padStart(2, '0')}</span>
+              <span class="font-serif text-3xl">{s.label}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
+</div>
+
+<script>
+  const menu = document.getElementById('mobile-menu')!;
+  const openBtn = document.getElementById('menu-open')!;
+  const closeBtn = document.getElementById('menu-close')!;
+
+  const setOpen = (open: boolean) => {
+    menu.classList.toggle('hidden', !open);
+    menu.classList.toggle('flex', open);
+    openBtn.setAttribute('aria-expanded', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
+    (open ? closeBtn : openBtn).focus();
+  };
+
+  openBtn.addEventListener('click', () => setOpen(true));
+  closeBtn.addEventListener('click', () => setOpen(false));
+  menu.querySelectorAll('[data-close-menu]').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !menu.classList.contains('hidden')) setOpen(false);
+  });
+</script>

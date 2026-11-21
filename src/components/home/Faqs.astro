@@ -1,0 +1,31 @@
+---
+import { Icon } from 'astro-icon/components';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  faqs: CollectionEntry<'home'>['data']['faqs'];
+}
+const { faqs } = Astro.props;
+---
+
+<section id="faqs" class="section">
+  <div class="grid gap-12 lg:grid-cols-12 lg:gap-16">
+    <div class="lg:col-span-4">
+      <p class="eyebrow">FAQs</p>
+      <h2 class="mt-4 text-5xl leading-tight">Good to know</h2>
+    </div>
+    <div class="divide-y divide-line border-y border-line lg:col-span-8">
+      {
+        faqs.map((f) => (
+          <details class="group py-5">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-6 font-serif text-2xl [&::-webkit-details-marker]:hidden">
+              {f.question}
+              <Icon name="lucide:plus" class="size-5 shrink-0 text-olive transition-transform group-open:rotate-45" aria-hidden="true" />
+            </summary>
+            <p class="mt-3 max-w-2xl text-[0.95rem] leading-relaxed text-muted">{f.answer}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>

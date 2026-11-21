@@ -1,16 +1,23 @@
 ---
+import { getCollection, getEntry } from 'astro:content';
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/home/Hero.astro';
+import Villa from '../components/home/Villa.astro';
+import Stay from '../components/home/Stay.astro';
+import Location from '../components/home/Location.astro';
+import Faqs from '../components/home/Faqs.astro';
+import Footer from '../components/Footer.astro';
+
+const site = (await getEntry('site', 'site'))!.data;
+const home = (await getEntry('home', 'home'))!.data;
+const spaces = (await getCollection('spaces')).sort((a, b) => a.data.order - b.data.order);
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout>
+  <Hero {...home.hero} />
+  <Villa content={home.villa} spaces={spaces} />
+  <Stay content={home.stay} whatsapp={site.whatsapp} email={site.email} />
+  <Location content={home.location} mapQuery={site.mapQuery} />
+  <Faqs faqs={home.faqs} />
+  <Footer site={site} />
+</Layout>

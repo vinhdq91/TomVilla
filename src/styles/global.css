@@ -1,0 +1,54 @@
+@import "tailwindcss";
+@import "@fontsource-variable/cormorant-garamond";
+@import "@fontsource-variable/jost";
+
+@theme {
+  --color-forest: #1e3a2d;
+  --color-forest-deep: #162c22;
+  --color-olive: #6b6a45;
+  --color-cream: #f4f1ea;
+  --color-sand: #e9e4da;
+  --color-ink: #262622;
+  --color-muted: #66655d;
+  --color-line: #d9d3c6;
+
+  --font-serif: "Cormorant Garamond Variable", Georgia, serif;
+  --font-sans: "Jost Variable", system-ui, sans-serif;
+
+  --sidebar-w: 7.5rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  @media (min-width: 64rem) {
+    html { scroll-padding-top: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+  body {
+    @apply bg-cream font-sans text-ink antialiased font-light;
+  }
+  h1, h2, h3 {
+    @apply font-serif font-normal;
+  }
+}
+
+@layer components {
+  /* Small uppercase label above headings (borrowed from template 2). */
+  .eyebrow {
+    @apply text-[0.7rem] font-normal uppercase tracking-[0.25em] text-olive;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-4 bg-forest px-5 py-3 text-sm text-white transition-colors hover:bg-forest-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest;
+  }
+  .section {
+    @apply px-6 py-20 sm:px-10 lg:px-16 lg:py-24;
+  }
+  .field {
+    @apply w-full border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-forest;
+  }
+}

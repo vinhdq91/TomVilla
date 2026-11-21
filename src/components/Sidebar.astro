@@ -1,0 +1,49 @@
+---
+import Logo from './Logo.astro';
+import { sections } from '../lib/nav';
+---
+
+<aside
+  class="fixed inset-y-0 left-0 z-30 hidden w-(--sidebar-w) flex-col items-center bg-forest text-white lg:flex"
+  aria-label="Section navigation"
+>
+  <a href="#home" class="mt-8 text-white/80 transition-colors hover:text-white" aria-label="Back to top">
+    <Logo class="h-11 w-8" />
+  </a>
+
+  <nav class="mt-16 w-full px-6">
+    <ol class="space-y-9">
+      {
+        sections.map((s, i) => (
+          <li>
+            <a href={`#${s.id}`} data-spy={s.id} class="group block text-white/55 transition-colors hover:text-white">
+              <span class="block font-serif text-xl">{String(i + 1).padStart(2, '0')}</span>
+              <span class="mt-0.5 block text-[0.7rem] tracking-wide">{s.label}</span>
+              <span class="spy-bar mt-3 block h-px w-0 bg-white transition-all duration-300" />
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
+
+  <!-- Decorative branch -->
+  <svg class="mt-auto mb-10 w-20 text-white/30" viewBox="0 0 80 110" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+    <path d="M10 108C30 80 42 50 66 6" />
+    <path d="M24 82c-10-2-16-10-16-18 9 2 15 9 16 18z" />
+    <path d="M27 76c3-10 11-15 19-14-2 9-10 14-19 14z" />
+    <path d="M35 60c-9-4-13-12-12-20 8 3 13 11 12 20z" />
+    <path d="M40 52c4-9 12-13 20-11-3 9-11 13-20 11z" />
+    <path d="M48 38c-7-6-9-14-6-21 7 5 9 13 6 21z" />
+    <path d="M52 30c5-7 13-9 20-6-4 7-12 10-20 6z" />
+  </svg>
+</aside>
+
+<style>
+  a[aria-current='true'] {
+    color: white;
+  }
+  a[aria-current='true'] .spy-bar {
+    width: 1.25rem;
+  }
+</style>
