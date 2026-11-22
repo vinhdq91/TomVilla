@@ -2,17 +2,17 @@ hero:
   title: Tom's House
   subtitle: Private Villa in Hoi An
   text: >-
-    A quiet garden villa between the rice fields and the Ancient Town —
-    made for slow mornings, long swims and lantern-lit evenings.
+    A quiet garden villa between the rice fields and the Ancient Town — made for
+    slow mornings, long swims and lantern-lit evenings.
   buttonLabel: Check Availability
-  image: ../../assets/images/home/hero.jpg
+  image: ../../assets/images/home/hero/image.png
 villa:
   eyebrow: The Villa
   heading: Your home in Hoi An
   text: >-
-    Tom's House is a private villa for families and friends who want space,
-    calm and a true taste of local life. Wake up to birdsong in the garden,
-    cool off in the pool, then cycle into town for dinner by the river.
+    Tom's House is a private villa for families and friends who want space, calm
+    and a true taste of local life. Wake up to birdsong in the garden, cool off
+    in the pool, then cycle into town for dinner by the river.
   amenities:
     - icon: waves
       label: Private pool
@@ -44,16 +44,16 @@ stay:
       text: Local tips, bikes and day trips — just ask.
   bookingTitle: Check Availability
   bookingText: >-
-    Tell us your dates and we'll reply within a few hours with availability
-    and the best rate.
+    Tell us your dates and we'll reply within a few hours with availability and
+    the best rate.
 location:
   eyebrow: Location
   heading: Between the rice fields and the river
   text: >-
     Close enough to cycle into the Ancient Town, far enough to hear only the
-    garden at night. The beach, cooking classes and the lantern-lit night
-    market are all a short ride away.
-  image: ../../assets/images/home/location.jpg
+    garden at night. The beach, cooking classes and the lantern-lit night market
+    are all a short ride away.
+  image: ../../assets/images/home/location/image.png
   distances:
     - place: Hoi An Ancient Town
       time: 10 min by bike
@@ -63,10 +63,16 @@ location:
       time: 45 min by car
 faqs:
   - question: What are the check-in and check-out times?
-    answer: Check-in is from 2:00 pm and check-out is by 11:00 am. Early or late times can often be arranged — just ask.
+    answer: >-
+      Check-in is from 2:00 pm and check-out is by 11:00 am. Early or late times
+      can often be arranged — just ask.
   - question: Can you arrange an airport pickup?
     answer: Yes. We can arrange a private car from Da Nang Airport for you.
   - question: Is the villa suitable for children?
-    answer: Yes, families are very welcome. Let us know if you need a cot or high chair.
+    answer: >-
+      Yes, families are very welcome. Let us know if you need a cot or high
+      chair.
   - question: How do I pay?
-    answer: We take a deposit to confirm your booking by bank transfer or PayPal, and the balance on arrival.
+    answer: >-
+      We take a deposit to confirm your booking by bank transfer or PayPal, and
+      the balance on arrival.
