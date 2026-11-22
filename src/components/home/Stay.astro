@@ -5,10 +5,11 @@ import BookingCard from './BookingCard.astro';
 
 interface Props {
   content: CollectionEntry<'home'>['data']['stay'];
+  villaName: string;
   whatsapp: string;
   email: string;
 }
-const { content, whatsapp, email } = Astro.props;
+const { content, villaName, whatsapp, email } = Astro.props;
 ---
 
 <section id="stay" class="section pt-4 lg:pt-8">
@@ -36,7 +37,7 @@ const { content, whatsapp, email } = Astro.props;
     </div>
 
     <div class="lg:col-span-5">
-      <BookingCard title={content.bookingTitle} text={content.bookingText} whatsapp={whatsapp} email={email} />
+      <BookingCard villaName={villaName} title={content.bookingTitle} text={content.bookingText} whatsapp={whatsapp} email={email} />
     </div>
   </div>
 </section>

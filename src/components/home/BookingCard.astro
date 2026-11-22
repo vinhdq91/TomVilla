@@ -2,12 +2,13 @@
 import { Icon } from 'astro-icon/components';
 
 interface Props {
+  villaName: string;
   title: string;
   text: string;
   whatsapp: string;
   email: string;
 }
-const { title, text, whatsapp, email } = Astro.props;
+const { villaName, title, text, whatsapp, email } = Astro.props;
 ---
 
 <!--
@@ -21,7 +22,7 @@ const { title, text, whatsapp, email } = Astro.props;
     <span class="mx-auto mt-4 block h-px w-10 bg-white/60" aria-hidden="true"></span>
   </div>
 
-  <form id="booking-form" class="space-y-4 px-8 py-8" data-whatsapp={whatsapp} data-email={email}>
+  <form id="booking-form" class="space-y-4 px-8 py-8" data-whatsapp={whatsapp} data-email={email} data-villa={villaName}>
     <p class="text-sm leading-relaxed text-muted">{text}</p>
 
     <div class="grid grid-cols-2 gap-3">
@@ -86,7 +87,7 @@ const { title, text, whatsapp, email } = Astro.props;
     const data = new FormData(form);
     const name = String(data.get('name') || '').trim();
     return [
-      "Hello Tom's House! I'd like to check availability:",
+      `Hello ${form.dataset.villa}! I'd like to check availability:`,
       `Check-in: ${fmt(checkin.value)}`,
       `Check-out: ${fmt(checkout.value)}`,
       `Guests: ${data.get('guests')}`,

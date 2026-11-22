@@ -1,4 +1,4 @@
-# Tom's House — villa website
+# Tom Villa — villa website
 
 Astro + Tailwind, hosted on Cloudflare. Content is edited in the Keystatic admin panel.
 

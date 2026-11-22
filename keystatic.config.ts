@@ -20,7 +20,7 @@ export default config({
     import.meta.env.PROD || import.meta.env.PUBLIC_KEYSTATIC_STORAGE === 'github'
       ? { kind: 'github', repo: 'vinhdq91/TomVilla' }
       : { kind: 'local' },
-  ui: { brand: { name: "Tom's House" } },
+  ui: { brand: { name: 'Tom Villa' } },
 
   singletons: {
     site: singleton({
