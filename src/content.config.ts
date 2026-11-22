@@ -1,6 +1,7 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { galleryCategories } from './lib/gallery';
 
 // These schemas mirror keystatic.config.ts. Change both together.
 
@@ -66,4 +67,15 @@ const spaces = defineCollection({
     }),
 });
 
-export const collections = { site, home, spaces };
+const gallery = defineCollection({
+  loader: glob({ pattern: '*.yaml', base: './src/content/gallery' }),
+  schema: ({ image }) =>
+    z.object({
+      caption: z.string(),
+      category: z.enum(galleryCategories.map((c) => c.value) as [string, ...string[]]),
+      order: z.number().default(10),
+      image: image(),
+    }),
+});
+
+export const collections = { site, home, spaces, gallery };

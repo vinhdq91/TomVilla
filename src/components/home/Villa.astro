@@ -16,9 +16,14 @@ const { content, spaces } = Astro.props;
       <p class="eyebrow">{content.eyebrow}</p>
       <h2 class="mt-4 text-5xl leading-tight">{content.heading}</h2>
       <p class="mt-6 text-[0.95rem] leading-relaxed text-muted">{content.text}</p>
-      <a href="#stay" class="btn-primary mt-8">
-        Check Availability <Icon name="lucide:arrow-right" class="size-4" aria-hidden="true" />
-      </a>
+      <div class="mt-8 flex flex-wrap items-center gap-x-7 gap-y-4">
+        <a href="#stay" class="btn-primary">
+          Check Availability <Icon name="lucide:arrow-right" class="size-4" aria-hidden="true" />
+        </a>
+        <a href="/gallery" class="text-sm underline decoration-line underline-offset-8 transition-colors hover:text-olive hover:decoration-olive">
+          View all photos
+        </a>
+      </div>
     </div>
 
     <div class="grid gap-6 sm:grid-cols-2 lg:col-span-8">

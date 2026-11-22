@@ -1,0 +1,90 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import { getImage } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import GalleryGrid from '../components/gallery/GalleryGrid.astro';
+import Lightbox from '../components/gallery/Lightbox.astro';
+import { galleryCategories } from '../lib/gallery';
+
+const site = (await getEntry('site', 'site'))!.data;
+const entries = (await getCollection('gallery')).sort((a, b) => a.data.order - b.data.order);
+
+// A large version of each photo for the full-screen viewer (never upscaled).
+const photos = await Promise.all(
+  entries.map(async ({ id, data }) => ({
+    id,
+    ...data,
+    full: (await getImage({ src: data.image, width: Math.min(2000, data.image.width), format: 'webp' })).src,
+  })),
+);
+
+// Only show tabs for categories that have photos.
+const tabs = galleryCategories.filter((c) => photos.some((p) => p.category === c.value));
+---
+
+<Layout
+  title={`Gallery · ${site.name}`}
+  description={`Photos of ${site.name}, a private villa in Hoi An: bedrooms, pool and garden, living spaces and the town around it.`}
+>
+  <section class="section pt-10 lg:pt-12">
+    <div class="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="eyebrow">Gallery</p>
+        <h1 class="mt-4 text-5xl leading-tight sm:text-6xl">A look around</h1>
+        <p class="mt-4 max-w-md text-[0.95rem] leading-relaxed text-muted">
+          Take a wander through the house, the garden and the town on our doorstep.
+        </p>
+      </div>
+
+      {
+        tabs.length > 1 && (
+          <div class="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0" role="group" aria-label="Filter photos">
+            <div class="flex w-max gap-2">
+              <button type="button" data-filter="all" aria-pressed="true" class="tab">All</button>
+              {tabs.map((t) => (
+                <button type="button" data-filter={t.value} aria-pressed="false" class="tab">
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      }
+    </div>
+
+    {
+      photos.length > 0 ? (
+        <GalleryGrid photos={photos} />
+      ) : (
+        <p class="mt-16 text-muted">Photos are coming soon.</p>
+      )
+    }
+  </section>
+
+  <Lightbox />
+</Layout>
+
+<style>
+  @reference "../styles/global.css";
+  .tab {
+    @apply rounded-full border border-line px-4 py-2 text-xs tracking-wide whitespace-nowrap transition-colors hover:border-forest;
+  }
+  .tab[aria-pressed='true'] {
+    @apply border-forest bg-forest text-white;
+  }
+</style>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+  const items = document.querySelectorAll<HTMLElement>('[data-category]');
+
+  buttons.forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter;
+      buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      items.forEach((item) => {
+        item.hidden = filter !== 'all' && item.dataset.category !== filter;
+      });
+    }),
+  );
+</script>

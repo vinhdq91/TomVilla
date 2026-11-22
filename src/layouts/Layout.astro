@@ -3,6 +3,7 @@ import '../styles/global.css';
 import { getEntry } from 'astro:content';
 import Sidebar from '../components/Sidebar.astro';
 import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
 
 interface Props {
   title?: string;
@@ -48,11 +49,12 @@ const structuredData = {
       Skip to content
     </a>
     <Sidebar />
-    <div class="lg:pl-(--sidebar-w)">
+    <div class="flex min-h-dvh flex-col lg:pl-(--sidebar-w)">
       <Header name={site.name} />
-      <main id="main">
+      <main id="main" class="flex-1">
         <slot />
       </main>
+      <Footer site={site} />
     </div>
 
     <script>

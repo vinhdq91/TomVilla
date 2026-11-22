@@ -1,5 +1,6 @@
 import { config, fields, collection, singleton } from '@keystatic/core';
 import { amenityIcons } from './src/lib/icons';
+import { galleryCategories } from './src/lib/gallery';
 
 // Everything editable in the admin panel (/keystatic) is defined here.
 // Content is saved as YAML files in src/content and images in src/assets/images.
@@ -122,6 +123,28 @@ export default config({
   },
 
   collections: {
+    gallery: collection({
+      label: 'Gallery photos',
+      slugField: 'caption',
+      path: 'src/content/gallery/*',
+      format: { data: 'yaml' },
+      columns: ['caption', 'category', 'order'],
+      schema: {
+        caption: fields.slug({ name: { label: 'Caption', description: 'Short description, also used for accessibility' } }),
+        category: fields.select({
+          label: 'Category',
+          options: galleryCategories.map((c) => ({ label: c.label, value: c.value })),
+          defaultValue: galleryCategories[0].value,
+        }),
+        order: fields.integer({ label: 'Display order', description: 'Lower numbers appear first', defaultValue: 10 }),
+        image: fields.image({
+          label: 'Photo',
+          directory: 'src/assets/images/gallery',
+          publicPath: '../../assets/images/gallery/',
+          validation: { isRequired: true },
+        }),
+      },
+    }),
     spaces: collection({
       label: 'Villa spaces (photo cards)',
       slugField: 'name',

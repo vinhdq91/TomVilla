@@ -1,0 +1,111 @@
+---
+import { Icon } from 'astro-icon/components';
+---
+
+<!-- Full-screen photo viewer. Opens from any [data-photo] button on the page. -->
+<dialog
+  id="lightbox"
+  class="m-0 h-dvh max-h-none w-screen max-w-none bg-transparent p-0 text-white backdrop:bg-black/90"
+  aria-label="Photo viewer"
+>
+  <div class="flex h-full flex-col" data-lightbox-stage>
+    <div class="flex items-center justify-between px-5 py-4 text-sm text-white/70">
+      <span data-lightbox-counter></span>
+      <button type="button" data-lightbox-close class="rounded-full p-2 hover:bg-white/10" aria-label="Close">
+        <Icon name="lucide:x" class="size-6" aria-hidden="true" />
+      </button>
+    </div>
+
+    <div class="relative flex min-h-0 flex-1 items-center justify-center px-4 sm:px-20">
+      <img data-lightbox-img alt="" class="max-h-full max-w-full object-contain select-none" />
+      <button
+        type="button"
+        data-lightbox-prev
+        class="absolute left-2 rounded-full bg-black/30 p-3 hover:bg-white/15 sm:left-5"
+        aria-label="Previous photo"
+      >
+        <Icon name="lucide:chevron-left" class="size-6" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        data-lightbox-next
+        class="absolute right-2 rounded-full bg-black/30 p-3 hover:bg-white/15 sm:right-5"
+        aria-label="Next photo"
+      >
+        <Icon name="lucide:chevron-right" class="size-6" aria-hidden="true" />
+      </button>
+    </div>
+
+    <p data-lightbox-caption class="px-6 py-5 text-center font-serif text-xl"></p>
+  </div>
+</dialog>
+
+<script>
+  const dialog = document.getElementById('lightbox') as HTMLDialogElement;
+  const img = dialog.querySelector<HTMLImageElement>('[data-lightbox-img]')!;
+  const caption = dialog.querySelector<HTMLElement>('[data-lightbox-caption]')!;
+  const counter = dialog.querySelector<HTMLElement>('[data-lightbox-counter]')!;
+  const prevBtn = dialog.querySelector<HTMLButtonElement>('[data-lightbox-prev]')!;
+  const nextBtn = dialog.querySelector<HTMLButtonElement>('[data-lightbox-next]')!;
+
+  let list: HTMLElement[] = [];
+  let index = 0;
+
+  // Only photos currently visible (respects the category filter).
+  const visiblePhotos = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-photo]')].filter((el) => !el.closest('[hidden]'));
+
+  function show(i: number) {
+    index = (i + list.length) % list.length;
+    const el = list[index];
+    img.src = el.dataset.full!;
+    img.alt = el.dataset.caption!;
+    caption.textContent = el.dataset.caption!;
+    counter.textContent = `${index + 1} / ${list.length}`;
+    const single = list.length < 2;
+    prevBtn.hidden = single;
+    nextBtn.hidden = single;
+    // Preload neighbours so swiping feels instant.
+    [index - 1, index + 1].forEach((n) => {
+      const next = list[(n + list.length) % list.length];
+      if (next) new Image().src = next.dataset.full!;
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>('[data-photo]');
+    if (!trigger) return;
+    list = visiblePhotos();
+    show(list.indexOf(trigger));
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
+  });
+
+  prevBtn.addEventListener('click', () => show(index - 1));
+  nextBtn.addEventListener('click', () => show(index + 1));
+  dialog.querySelector('[data-lightbox-close]')!.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => {
+    document.body.style.overflow = '';
+    img.removeAttribute('src');
+  });
+
+  // Click on the dark background (not the photo or buttons) closes the viewer.
+  dialog.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    if (t === dialog || t.matches('[data-lightbox-stage], [data-lightbox-stage] > div')) dialog.close();
+  });
+
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') show(index - 1);
+    if (e.key === 'ArrowRight') show(index + 1);
+    if (e.key === 'Escape') dialog.close();
+  });
+
+  // Swipe left/right on phones.
+  let startX = 0;
+  dialog.addEventListener('touchstart', (e) => (startX = e.touches[0].clientX), { passive: true });
+  dialog.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
+  });
+</script>

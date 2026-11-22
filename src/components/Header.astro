@@ -1,25 +1,36 @@
 ---
 import { Icon } from 'astro-icon/components';
 import Logo from './Logo.astro';
-import { sections } from '../lib/nav';
+import { nav, isCurrentPage } from '../lib/nav';
 
 interface Props {
   name: string;
 }
 const { name } = Astro.props;
-const topLinks = sections.filter((s) => ['villa', 'location', 'faqs', 'contact'].includes(s.id));
+const { pathname } = Astro.url;
+const topLinks = nav.filter((l) => ['/#villa', '/gallery', '/#location', '/#faqs'].includes(l.href));
 ---
 
 <header class="sticky top-0 z-20 border-b border-line/60 bg-cream/95 backdrop-blur lg:static lg:border-0 lg:bg-cream">
   <div class="flex h-16 items-center justify-between px-6 sm:px-10 lg:h-24 lg:px-16">
-    <a href="#home" class="flex items-center gap-3 text-forest">
+    <a href="/" class="flex items-center gap-3 text-forest">
       <Logo class="h-9 w-7 lg:h-12 lg:w-9" />
       <span class="font-serif text-2xl text-ink lg:text-3xl">{name}</span>
     </a>
 
-    <nav class="hidden items-center gap-10 text-sm md:flex" aria-label="Main">
-      {topLinks.map((l) => <a href={`#${l.id}`} class="transition-colors hover:text-olive">{l.label}</a>)}
-      <a href="#stay" class="rounded-full bg-forest px-5 py-2.5 text-[0.7rem] uppercase tracking-[0.2em] text-white transition-colors hover:bg-forest-deep">
+    <nav class="hidden items-center gap-8 text-sm lg:flex xl:gap-10" aria-label="Main">
+      {
+        topLinks.map((l) => (
+          <a
+            href={l.href}
+            aria-current={isCurrentPage(l.href, pathname) ? 'page' : undefined}
+            class="transition-colors hover:text-olive aria-[current=page]:text-olive aria-[current=page]:underline aria-[current=page]:underline-offset-8"
+          >
+            {l.label}
+          </a>
+        ))
+      }
+      <a href="/#stay" class="rounded-full bg-forest px-5 py-2.5 text-[0.7rem] uppercase tracking-[0.2em] text-white transition-colors hover:bg-forest-deep">
         Book Now
       </a>
     </nav>
@@ -27,7 +38,7 @@ const topLinks = sections.filter((s) => ['villa', 'location', 'faqs', 'contact']
     <button
       id="menu-open"
       type="button"
-      class="flex flex-col items-center gap-1 text-[0.65rem] uppercase tracking-widest md:hidden"
+      class="flex flex-col items-center gap-1 text-[0.65rem] uppercase tracking-widest lg:hidden"
       aria-controls="mobile-menu"
       aria-expanded="false"
     >
@@ -38,7 +49,7 @@ const topLinks = sections.filter((s) => ['villa', 'location', 'faqs', 'contact']
 </header>
 
 <!-- Mobile menu -->
-<div id="mobile-menu" class="fixed inset-0 z-40 hidden flex-col bg-forest px-8 py-6 text-white" role="dialog" aria-modal="true" aria-label="Menu">
+<div id="mobile-menu" class="fixed inset-0 z-40 hidden flex-col overflow-y-auto bg-forest px-8 py-6 text-white" role="dialog" aria-modal="true" aria-label="Menu">
   <div class="flex items-center justify-between">
     <span class="flex items-center gap-3">
       <Logo class="h-9 w-7 text-white/80" />
@@ -48,14 +59,14 @@ const topLinks = sections.filter((s) => ['villa', 'location', 'faqs', 'contact']
       <Icon name="lucide:x" class="size-7" aria-hidden="true" />
     </button>
   </div>
-  <nav class="mt-14">
-    <ol class="space-y-6">
+  <nav class="mt-12">
+    <ol class="space-y-5">
       {
-        sections.map((s, i) => (
+        nav.map((item, i) => (
           <li>
-            <a href={`#${s.id}`} class="flex items-baseline gap-5" data-close-menu>
+            <a href={item.href} class="flex items-baseline gap-5" data-close-menu>
               <span class="font-serif text-lg text-white/50">{String(i + 1).padStart(2, '0')}</span>
-              <span class="font-serif text-3xl">{s.label}</span>
+              <span class="font-serif text-3xl">{item.label}</span>
             </a>
           </li>
         ))

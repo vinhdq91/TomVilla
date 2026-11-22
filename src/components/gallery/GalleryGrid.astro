@@ -1,0 +1,39 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  photos: { id: string; caption: string; category: string; image: ImageMetadata; full: string }[];
+}
+const { photos } = Astro.props;
+---
+
+<!-- Column layout keeps each photo's own shape (portrait and landscape mix). -->
+<ul class="mt-12 columns-1 gap-5 sm:columns-2 xl:columns-3">
+  {
+    photos.map((p, i) => (
+      <li class="mb-5 break-inside-avoid" data-category={p.category}>
+        <button
+          type="button"
+          class="group block w-full cursor-zoom-in text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
+          data-photo
+          data-full={p.full}
+          data-caption={p.caption}
+          aria-label={`Open photo: ${p.caption}`}
+        >
+          <span class="block overflow-hidden bg-sand">
+            <Image
+              src={p.image}
+              alt={p.caption}
+              widths={[400, 640, 900, 1200]}
+              sizes="(min-width: 1280px) 30vw, (min-width: 640px) 45vw, 100vw"
+              loading={i < 3 ? 'eager' : 'lazy'}
+              class="w-full transition-transform duration-700 group-hover:scale-[1.03]"
+            />
+          </span>
+          <span class="mt-2.5 block font-serif text-lg text-muted transition-colors group-hover:text-ink">{p.caption}</span>
+        </button>
+      </li>
+    ))
+  }
+</ul>
