@@ -12,9 +12,13 @@ const iconSelect = (label: string) =>
   });
 
 export default config({
-  // Local mode while developing. Switch to { kind: 'github', repo: 'owner/name' }
-  // when the site goes live so the admin panel works online.
-  storage: { kind: 'local' },
+  // Live site: edits are saved as commits to GitHub, which triggers a Cloudflare rebuild.
+  // `npm run admin`: edits are saved straight to files on this computer.
+  // `npm run admin:github`: local admin in GitHub mode (used once to create the GitHub App).
+  storage:
+    import.meta.env.PROD || import.meta.env.PUBLIC_KEYSTATIC_STORAGE === 'github'
+      ? { kind: 'github', repo: 'vinhdq91/TomVilla' }
+      : { kind: 'local' },
   ui: { brand: { name: "Tom's House" } },
 
   singletons: {

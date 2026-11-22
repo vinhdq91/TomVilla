@@ -11,7 +11,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "generate-types": "wrangler types",
-    "admin": "cross-env KEYSTATIC=1 astro dev"
+    "admin": "cross-env KEYSTATIC=1 astro dev",
+    "admin:github": "cross-env KEYSTATIC=1 PUBLIC_KEYSTATIC_STORAGE=github astro dev"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.6",

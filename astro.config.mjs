@@ -9,11 +9,12 @@ import keystatic from '@keystatic/astro';
 import icon from 'astro-icon';
 import node from '@astrojs/node';
 
-// `npm run admin` sets KEYSTATIC=1: the site runs on Node with the admin panel
-// at /keystatic (it saves files to disk, which Cloudflare's runtime can't do).
-// `npm run dev` / `npm run build` use the Cloudflare runtime, without the admin.
-// Once the admin is connected to GitHub (see keystatic.config.ts) it can run online.
+// `npm run admin` sets KEYSTATIC=1: the site runs on Node with the admin panel at
+// /keystatic, saving files to disk (Cloudflare's local dev runtime can't do that).
+// `npm run dev` previews the site in the Cloudflare runtime, without the admin.
+// `npm run build` includes the admin, which runs online in GitHub mode (keystatic.config.ts).
 const isAdmin = process.env.KEYSTATIC === '1';
+const isPlainDev = process.argv.includes('dev') && !isAdmin;
 
 // https://astro.build/config
 export default defineConfig({
@@ -29,6 +30,6 @@ export default defineConfig({
     react(),
     markdoc(),
     icon({ include: { lucide: ['*'] } }),
-    ...(isAdmin ? [keystatic()] : []),
+    ...(isPlainDev ? [] : [keystatic()]),
   ],
 });
