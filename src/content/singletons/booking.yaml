@@ -1,0 +1,35 @@
+nightlyPrice: 2500000
+weekendPrice: 2800000
+minNights: 2
+maxGuests: 8
+cleaningFee: 0
+seasons:
+  - name: Tết holiday
+    start: '2027-02-03'
+    end: '2027-02-14'
+    nightlyPrice: 4000000
+    weekendPrice: 0
+    minNights: 3
+  - name: Summer
+    start: '2027-06-01'
+    end: '2027-08-31'
+    nightlyPrice: 3200000
+    weekendPrice: 3500000
+    minNights: 2
+paymentOptions:
+  - '30'
+  - '50'
+  - '100'
+cancellationDays: '14'
+holdHours: 2
+bookAheadMonths: 12
+bank:
+  bin: '970436'
+  accountNumber: '0000000000'
+  accountName: NGUYEN VAN A
+calendarFeeds: []
+intro: >-
+  Choose your dates to see the price. Your dates are held for a few hours while you pay the
+  deposit, then we confirm your stay on WhatsApp.
+houseRules: >-
+  Check-in from 2pm, check-out by 11am. No smoking indoors. Please tell us if you are bringing pets.

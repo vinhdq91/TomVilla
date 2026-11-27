@@ -7,14 +7,12 @@ interface Props {
   text: string;
   whatsapp: string;
   email: string;
+  maxGuests: number;
 }
-const { villaName, title, text, whatsapp, email } = Astro.props;
+const { villaName, title, text, whatsapp, maxGuests } = Astro.props;
 ---
 
-<!--
-  v1: sends the guest's dates to WhatsApp (or email) — no server needed.
-  v2: this form will post to a booking API backed by Cloudflare D1.
--->
+<!-- Sends the dates to /book, which shows availability, the price and the booking form. -->
 <div class="mx-auto max-w-md overflow-hidden bg-white shadow-[0_20px_50px_-20px_rgba(0,0,0,0.25)]">
   <div class="bg-forest px-8 py-8 text-center text-white">
     <Icon name="lucide:calendar-days" class="mx-auto size-7 text-white/80" aria-hidden="true" />
@@ -22,46 +20,37 @@ const { villaName, title, text, whatsapp, email } = Astro.props;
     <span class="mx-auto mt-4 block h-px w-10 bg-white/60" aria-hidden="true"></span>
   </div>
 
-  <form id="booking-form" class="space-y-4 px-8 py-8" data-whatsapp={whatsapp} data-email={email} data-villa={villaName}>
+  <form id="booking-form" action="/book" method="get" class="space-y-4 px-8 py-8" data-whatsapp={whatsapp} data-villa={villaName}>
     <p class="text-sm leading-relaxed text-muted">{text}</p>
 
     <div class="grid grid-cols-2 gap-3">
       <label class="block text-xs text-muted">
         Check-in
-        <input type="date" name="checkin" required class="field mt-1" />
+        <input type="date" name="checkin" class="field mt-1" />
       </label>
       <label class="block text-xs text-muted">
         Check-out
-        <input type="date" name="checkout" required class="field mt-1" />
+        <input type="date" name="checkout" class="field mt-1" />
       </label>
     </div>
-    <div class="grid grid-cols-2 gap-3">
-      <label class="block text-xs text-muted">
-        Guests
-        <select name="guests" class="field mt-1">
-          {Array.from({ length: 10 }, (_, i) => <option value={i + 1} selected={i === 1}>{i + 1}</option>)}
-        </select>
-      </label>
-      <label class="block text-xs text-muted">
-        Your name
-        <input type="text" name="name" autocomplete="name" class="field mt-1" />
-      </label>
-    </div>
-
-    <p id="booking-error" class="hidden text-sm text-red-700" role="alert"></p>
+    <label class="block text-xs text-muted">
+      Guests
+      <select name="guests" class="field mt-1">
+        {Array.from({ length: maxGuests }, (_, i) => <option value={i + 1} selected={i === 1}>{i + 1}</option>)}
+      </select>
+    </label>
 
     <button type="submit" class="btn-primary w-full justify-between">
-      Ask on WhatsApp <Icon name="lucide:arrow-right" class="size-4" aria-hidden="true" />
+      Check availability & price <Icon name="lucide:arrow-right" class="size-4" aria-hidden="true" />
     </button>
-    <button type="button" id="booking-email" class="w-full text-center text-xs text-muted underline underline-offset-4 hover:text-ink">
-      or send by email
+    <button type="button" id="booking-whatsapp" class="w-full text-center text-xs text-muted underline underline-offset-4 hover:text-ink">
+      or ask us on WhatsApp
     </button>
   </form>
 </div>
 
 <script>
   const form = document.getElementById('booking-form') as HTMLFormElement;
-  const error = document.getElementById('booking-error')!;
   const checkin = form.elements.namedItem('checkin') as HTMLInputElement;
   const checkout = form.elements.namedItem('checkout') as HTMLInputElement;
 
@@ -74,38 +63,25 @@ const { villaName, title, text, whatsapp, email } = Astro.props;
     if (checkout.value && checkout.value <= checkin.value) checkout.value = '';
   });
 
-  const fmt = (d: string) =>
-    new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  // Don't send empty dates to /book.
+  form.addEventListener('submit', () => {
+    if (!checkin.value) checkin.disabled = true;
+    if (!checkout.value) checkout.disabled = true;
+    setTimeout(() => (checkin.disabled = checkout.disabled = false));
+  });
 
-  function buildMessage(): string | null {
-    error.classList.add('hidden');
-    if (!checkin.value || !checkout.value || checkout.value <= checkin.value) {
-      error.textContent = 'Please choose a check-out date after your check-in date.';
-      error.classList.remove('hidden');
-      return null;
-    }
+  const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  document.getElementById('booking-whatsapp')!.addEventListener('click', () => {
     const data = new FormData(form);
-    const name = String(data.get('name') || '').trim();
-    return [
+    const msg = [
       `Hello ${form.dataset.villa}! I'd like to check availability:`,
-      `Check-in: ${fmt(checkin.value)}`,
-      `Check-out: ${fmt(checkout.value)}`,
+      checkin.value ? `Check-in: ${fmt(checkin.value)}` : '',
+      checkout.value ? `Check-out: ${fmt(checkout.value)}` : '',
       `Guests: ${data.get('guests')}`,
-      name ? `Name: ${name}` : '',
     ]
       .filter(Boolean)
       .join('\n');
-  }
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const msg = buildMessage();
-    if (msg) window.open(`https://wa.me/${form.dataset.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-  });
-
-  document.getElementById('booking-email')!.addEventListener('click', () => {
-    const msg = buildMessage();
-    if (msg)
-      window.location.href = `mailto:${form.dataset.email}?subject=${encodeURIComponent('Availability request')}&body=${encodeURIComponent(msg)}`;
+    window.open(`https://wa.me/${form.dataset.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   });
 </script>

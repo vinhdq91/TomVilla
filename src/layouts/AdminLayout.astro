@@ -1,0 +1,58 @@
+---
+import '../styles/global.css';
+import { getEntry } from 'astro:content';
+import Logo from '../components/Logo.astro';
+
+interface Props {
+  title: string;
+  /** Hide the top menu (login page). */
+  bare?: boolean;
+}
+const { title, bare = false } = Astro.props;
+const site = (await getEntry('site', 'site'))!.data;
+const { pathname } = Astro.url;
+const links = [
+  { href: '/admin/bookings', label: 'Bookings' },
+  { href: '/keystatic', label: 'Website content' },
+  { href: '/', label: 'View site' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · {site.name} owner</title>
+  </head>
+  <body class="min-h-dvh">
+    {
+      !bare && (
+        <header class="bg-forest text-white">
+          <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4 sm:px-8">
+            <a href="/admin" class="flex items-center gap-3">
+              <Logo class="h-8 w-6 text-white/80" />
+              <span class="font-serif text-2xl">{site.name}</span>
+              <span class="text-[0.65rem] uppercase tracking-[0.2em] text-white/60">Owner</span>
+            </a>
+            <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Owner">
+              {links.map((l) => (
+                <a href={l.href} class:list={['text-white/70 hover:text-white', pathname.startsWith(l.href) && l.href !== '/' && 'text-white underline underline-offset-8']}>
+                  {l.label}
+                </a>
+              ))}
+            </nav>
+            <form method="post" action="/admin/logout" class="ml-auto">
+              <button class="text-sm text-white/70 hover:text-white">Log out</button>
+            </form>
+          </div>
+        </header>
+      )
+    }
+    <main class="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+      <slot />
+    </main>
+  </body>
+</html>

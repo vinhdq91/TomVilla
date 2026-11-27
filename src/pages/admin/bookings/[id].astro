@@ -1,0 +1,235 @@
+---
+import { getEntry } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { findClash, getBooking, guestMessages, updateBooking, whatsappNumber, zaloNumber } from '../../../lib/admin/bookings';
+import { safeJson } from '../../../lib/safe-json';
+import { formatDate, VILLA_TIME_ZONE } from '../../../lib/booking/dates';
+import { formatVnd, groupNights, type Night } from '../../../lib/booking/pricing';
+import { displayStatus, getBookingSettings, statusLabels } from '../../../lib/booking/server';
+
+export const prerender = false;
+
+const id = Number(Astro.params.id);
+let booking = Number.isInteger(id) ? await getBooking(id) : undefined;
+if (!booking) return Astro.redirect('/admin/bookings');
+
+const settings = await getBookingSettings();
+let error = '';
+let notice = Astro.url.searchParams.get('done') ?? '';
+
+// ---- Actions ----
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action'));
+  const status = displayStatus(booking);
+  const amount = Math.round(Number(String(form.get('amount') ?? '').replace(/[^\d]/g, '')));
+
+  if (action === 'received') {
+    const clash = status === 'expired' ? await findClash(booking.checkin, booking.checkout, booking.id) : null;
+    if (clash) error = `Can't confirm: the ${clash}. Cancel or move one of them first.`;
+    else if (!(amount > 0)) error = 'Please enter the amount received.';
+    else {
+      await updateBooking(booking.id, { status: 'confirmed', amountPaid: Math.min(amount, booking.total) });
+      notice = 'Payment recorded and booking confirmed. Send the confirmation message to the guest below.';
+    }
+  } else if (action === 'confirm') {
+    await updateBooking(booking.id, { status: 'confirmed' });
+    notice = 'Booking confirmed.';
+  } else if (action === 'balance') {
+    await updateBooking(booking.id, { amountPaid: booking.total });
+    notice = 'Balance recorded as paid.';
+  } else if (action === 'extend') {
+    const clash = await findClash(booking.checkin, booking.checkout, booking.id);
+    if (clash) error = `Can't extend: the ${clash}.`;
+    else {
+      await updateBooking(booking.id, { status: 'pending', holdExpiresAt: Date.now() + settings.holdHours * 3_600_000 });
+      notice = `Hold extended by ${settings.holdHours} hours.`;
+    }
+  } else if (action === 'cancel') {
+    await updateBooking(booking.id, { status: 'cancelled' });
+    notice = 'Booking cancelled. The dates are open again.';
+  } else if (action === 'notes') {
+    await updateBooking(booking.id, { ownerNotes: String(form.get('notes') ?? '').slice(0, 2000) || null });
+    notice = 'Notes saved.';
+  }
+  if (!error) return Astro.redirect(`/admin/bookings/${booking.id}?done=${encodeURIComponent(notice)}`, 303);
+}
+
+booking = (await getBooking(id))!;
+const site = (await getEntry('site', 'site'))!.data;
+const status = displayStatus(booking);
+const details = JSON.parse(booking.priceDetails) as { nights: Night[]; cleaningFee: number };
+const bookingUrl = new URL(`/booking/${booking.token}`, Astro.url).href;
+const messages = guestMessages(booking, { villa: site.name, bookingUrl, bank: settings.bank });
+const suggested = status === 'confirmed' || status === 'completed' ? 'confirmation' : status === 'cancelled' ? 'cancelled' : 'reminder';
+const balance = booking.total - booking.amountPaid;
+const fmtTime = (ms: number) =>
+  new Date(ms).toLocaleString('en-GB', { timeZone: VILLA_TIME_ZONE, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const paymentLabel = booking.paymentOption === 100 ? 'Pay in full' : `${booking.paymentOption}% deposit`;
+---
+
+<AdminLayout title={`Booking ${booking.code}`}>
+  <a href="/admin/bookings" class="inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+    <Icon name="lucide:arrow-left" class="size-4" aria-hidden="true" /> All bookings
+  </a>
+  <div class="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-2">
+    <h1 class="font-serif text-5xl">{booking.name}</h1>
+    <span class="text-muted">{booking.code}</span>
+    <span class="bg-white px-3 py-1 text-sm">{statusLabels[status]}</span>
+  </div>
+
+  {notice && <p class="mt-6 bg-forest/10 px-4 py-3 text-sm text-forest" role="status">{notice}</p>}
+  {error && <p class="mt-6 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</p>}
+
+  <div class="mt-8 grid gap-8 lg:grid-cols-12 lg:items-start">
+    <div class="space-y-8 lg:col-span-7">
+      <!-- What to do next -->
+      {
+        (status === 'pending' || status === 'expired' || status === 'paid') && (
+          <section class="bg-white p-6">
+            <h2 class="font-serif text-2xl">Next step</h2>
+            {status === 'paid' ? (
+              <form method="post" class="mt-4">
+                <p class="text-sm text-muted">The guest has paid {formatVnd(booking.amountPaid)}. Confirm the stay:</p>
+                <button name="action" value="confirm" class="btn-primary mt-4">Confirm booking</button>
+              </form>
+            ) : (
+              <>
+                <p class="mt-1 text-sm text-muted">
+                  {status === 'pending'
+                    ? `Waiting for ${formatVnd(booking.amountDue)} by bank transfer with note ${booking.code}. Hold ends ${fmtTime(booking.holdExpiresAt)}.`
+                    : `The hold expired on ${fmtTime(booking.holdExpiresAt)} without payment. If the guest paid late, you can still confirm.`}
+                </p>
+                <form method="post" class="mt-4 flex flex-wrap items-end gap-3">
+                  <label class="block text-xs text-muted">
+                    Amount received (₫)
+                    <input name="amount" inputmode="numeric" value={booking.amountDue} required class="field mt-1 w-44" />
+                  </label>
+                  <button name="action" value="received" class="btn-primary">Payment received → Confirm</button>
+                </form>
+                <form method="post" class="mt-3">
+                  <button name="action" value="extend" class="text-sm text-muted underline underline-offset-4 hover:text-ink">
+                    Give the guest {settings.holdHours} more hours to pay
+                  </button>
+                </form>
+              </>
+            )}
+          </section>
+        )
+      }
+
+      <!-- Message the guest -->
+      <section class="bg-white p-6">
+        <h2 class="font-serif text-2xl">Message the guest</h2>
+        <p class="mt-1 text-sm text-muted">
+          Prefers {booking.contactMethod === 'zalo' ? 'Zalo' : booking.contactMethod === 'email' ? 'email' : 'WhatsApp'} · {booking.phone} · {booking.email}
+        </p>
+        <label class="mt-4 block text-xs text-muted">
+          Message
+          <select id="msg-pick" class="field mt-1">
+            {messages.map((m) => <option value={m.id} selected={m.id === suggested}>{m.label}</option>)}
+          </select>
+        </label>
+        <script is:inline type="application/json" id="msg-data" set:html={safeJson(Object.fromEntries(messages.map((m) => [m.id, m.text])))} />
+        <textarea id="msg-text" rows="7" class="field mt-3 font-sans">{messages.find((m) => m.id === suggested)!.text}</textarea>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a id="send-whatsapp" data-phone={whatsappNumber(booking.phone)} href="#" target="_blank" rel="noopener" class="btn-primary">
+            <Icon name="lucide:message-circle" class="size-4" aria-hidden="true" /> WhatsApp
+          </a>
+          <a href={`https://zalo.me/${zaloNumber(booking.phone)}`} target="_blank" rel="noopener" class="btn-primary bg-sky-700 hover:bg-sky-800" id="send-zalo">
+            <Icon name="lucide:message-square" class="size-4" aria-hidden="true" /> Zalo
+          </a>
+          <a id="send-email" data-email={booking.email} data-subject={`${site.name} – booking ${booking.code}`} href="#" class="btn-primary bg-olive hover:bg-ink">
+            <Icon name="lucide:mail" class="size-4" aria-hidden="true" /> Email
+          </a>
+          <button type="button" id="copy-msg" class="border border-line px-4 text-sm hover:bg-sand">Copy</button>
+        </div>
+        <p class="mt-2 text-xs text-muted">Zalo can't pre-fill text: the message is copied — just paste it in the chat.</p>
+      </section>
+
+      <!-- Owner notes -->
+      <form method="post" class="bg-white p-6">
+        <h2 class="font-serif text-2xl">Private notes</h2>
+        <textarea name="notes" rows="3" class="field mt-3" placeholder="Arrival time, airport pickup, refund details…">{booking.ownerNotes}</textarea>
+        <button name="action" value="notes" class="mt-3 border border-line px-4 py-2 text-sm hover:bg-sand">Save notes</button>
+      </form>
+    </div>
+
+    <!-- Details -->
+    <aside class="space-y-8 lg:col-span-5">
+      <section class="bg-white p-6 text-sm">
+        <h2 class="font-serif text-2xl">Stay</h2>
+        <dl class="mt-4 space-y-2">
+          <div class="flex justify-between gap-4"><dt class="text-muted">Check-in</dt><dd>{formatDate(booking.checkin)}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Check-out</dt><dd>{formatDate(booking.checkout)}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Nights · guests</dt><dd>{booking.nights} · {booking.guests}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Booked</dt><dd>{fmtTime(booking.createdAt)}</dd></div>
+          {booking.message && <div class="border-t border-line pt-3"><dt class="text-muted">Guest's message</dt><dd class="mt-1 whitespace-pre-line">{booking.message}</dd></div>}
+        </dl>
+      </section>
+
+      <section class="bg-white p-6 text-sm">
+        <h2 class="font-serif text-2xl">Payment</h2>
+        <dl class="mt-4 space-y-2">
+          {groupNights(details.nights).map((g) => (
+            <div class="flex justify-between gap-4">
+              <dt class="text-muted">{g.count} × {formatVnd(g.price)}{g.season && ` (${g.season})`}</dt>
+              <dd>{formatVnd(g.count * g.price)}</dd>
+            </div>
+          ))}
+          {details.cleaningFee > 0 && <div class="flex justify-between gap-4"><dt class="text-muted">Cleaning fee</dt><dd>{formatVnd(details.cleaningFee)}</dd></div>}
+          <div class="flex justify-between gap-4 border-t border-line pt-2 text-base"><dt>Total</dt><dd>{formatVnd(booking.total)}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Chosen</dt><dd>{paymentLabel} · {formatVnd(booking.amountDue)} by VietQR</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Received</dt><dd>{formatVnd(booking.amountPaid)}</dd></div>
+          <div class="flex justify-between gap-4 font-normal"><dt>Balance</dt><dd>{formatVnd(balance)}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Free cancellation</dt><dd>{booking.cancellationDays} days before</dd></div>
+        </dl>
+        {
+          status === 'confirmed' && balance > 0 && (
+            <form method="post" class="mt-4">
+              <button name="action" value="balance" class="border border-line px-4 py-2 hover:bg-sand">Balance paid at check-in</button>
+            </form>
+          )
+        }
+      </section>
+
+      <section class="bg-white p-6 text-sm">
+        <a href={bookingUrl} target="_blank" rel="noopener" class="underline underline-offset-4">Open the guest's booking page</a>
+        {
+          status !== 'cancelled' && status !== 'completed' && (
+            <form method="post" class="mt-4" onsubmit="return confirm('Cancel this booking? The dates will be open again.')">
+              <button name="action" value="cancel" class="text-red-700 underline underline-offset-4">Cancel booking</button>
+            </form>
+          )
+        }
+      </section>
+    </aside>
+  </div>
+</AdminLayout>
+
+<script>
+  const pick = document.getElementById('msg-pick') as unknown as HTMLSelectElement;
+  const text = document.getElementById('msg-text') as HTMLTextAreaElement;
+  const wa = document.getElementById('send-whatsapp') as HTMLAnchorElement;
+  const email = document.getElementById('send-email') as HTMLAnchorElement;
+  const messages: Record<string, string> = JSON.parse(document.getElementById('msg-data')!.textContent!);
+
+  const update = () => {
+    wa.href = `https://wa.me/${wa.dataset.phone}?text=${encodeURIComponent(text.value)}`;
+    email.href = `mailto:${email.dataset.email}?subject=${encodeURIComponent(email.dataset.subject!)}&body=${encodeURIComponent(text.value)}`;
+  };
+  pick.addEventListener('change', () => {
+    text.value = messages[pick.value];
+    update();
+  });
+  text.addEventListener('input', update);
+  update();
+
+  const copy = () => navigator.clipboard.writeText(text.value).catch(() => {});
+  document.getElementById('copy-msg')!.addEventListener('click', (e) => {
+    copy();
+    (e.currentTarget as HTMLButtonElement).textContent = 'Copied';
+  });
+  document.getElementById('send-zalo')!.addEventListener('click', copy);
+</script>

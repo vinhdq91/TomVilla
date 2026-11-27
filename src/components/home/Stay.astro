@@ -8,8 +8,9 @@ interface Props {
   villaName: string;
   whatsapp: string;
   email: string;
+  maxGuests: number;
 }
-const { content, villaName, whatsapp, email } = Astro.props;
+const { content, villaName, whatsapp, email, maxGuests } = Astro.props;
 ---
 
 <section id="stay" class="section pt-4 lg:pt-8">
@@ -37,7 +38,7 @@ const { content, villaName, whatsapp, email } = Astro.props;
     </div>
 
     <div class="lg:col-span-5">
-      <BookingCard villaName={villaName} title={content.bookingTitle} text={content.bookingText} whatsapp={whatsapp} email={email} />
+      <BookingCard villaName={villaName} title={content.bookingTitle} text={content.bookingText} whatsapp={whatsapp} email={email} maxGuests={maxGuests} />
     </div>
   </div>
 </section>

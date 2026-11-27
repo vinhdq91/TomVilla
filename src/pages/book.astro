@@ -1,0 +1,429 @@
+---
+import { getEntry } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import Layout from '../layouts/Layout.astro';
+import { safeJson } from '../lib/safe-json';
+
+// This page is static. Booked dates are loaded live from /api/availability,
+// and the booking is sent to /api/bookings (which recalculates the price).
+const site = (await getEntry('site', 'site'))!.data;
+const settings = (await getEntry('booking', 'booking'))!.data;
+
+const config = {
+  nightlyPrice: settings.nightlyPrice,
+  weekendPrice: settings.weekendPrice,
+  minNights: settings.minNights,
+  maxGuests: settings.maxGuests,
+  cleaningFee: settings.cleaningFee,
+  seasons: settings.seasons,
+  bookAheadMonths: settings.bookAheadMonths,
+};
+
+const paymentLabels: Record<string, { title: string; text: string }> = {
+  '30': { title: '30% deposit', text: 'Pay the rest at check-in' },
+  '50': { title: '50% deposit', text: 'Pay the rest at check-in' },
+  '100': { title: 'Pay in full', text: 'Nothing to pay on arrival' },
+};
+const paymentOptions = [...settings.paymentOptions].sort((a, b) => Number(a) - Number(b));
+---
+
+<Layout title={`Book your stay · ${site.name}`} description={`Check availability and book ${site.name} in Hoi An directly, with the best price.`}>
+  <section class="section pt-10 lg:pt-12">
+    <p class="eyebrow">Book your stay</p>
+    <h1 class="mt-4 text-5xl leading-tight sm:text-6xl">Book {site.name}</h1>
+    {settings.intro && <p class="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-muted">{settings.intro}</p>}
+
+    <script is:inline type="application/json" id="booking-config" set:html={safeJson(config)} />
+
+    <form id="book-form" class="mt-12 grid gap-10 lg:grid-cols-12 lg:items-start" novalidate>
+      <div class="space-y-12 lg:col-span-7">
+        <!-- 1. Dates -->
+        <fieldset>
+          <legend class="step-title"><span>01</span> Your dates</legend>
+
+          <div class="mt-6 bg-white p-5 sm:p-7">
+            <div class="flex items-center justify-between">
+              <button type="button" id="cal-prev" class="cal-nav" aria-label="Previous month">
+                <Icon name="lucide:chevron-left" class="size-5" aria-hidden="true" />
+              </button>
+              <p id="cal-status" class="text-center text-sm text-muted" aria-live="polite">Loading availability…</p>
+              <button type="button" id="cal-next" class="cal-nav" aria-label="Next month">
+                <Icon name="lucide:chevron-right" class="size-5" aria-hidden="true" />
+              </button>
+            </div>
+            <div id="calendar" class="mt-4 grid gap-8 sm:grid-cols-2"></div>
+            <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 text-xs text-muted">
+              <span class="flex items-center gap-2"><span class="size-3 bg-forest"></span> Selected</span>
+              <span class="flex items-center gap-2"><span class="size-3 bg-sand line-through"></span> Not available</span>
+              <button type="button" id="cal-clear" class="ml-auto underline underline-offset-4 hover:text-ink">Clear dates</button>
+            </div>
+          </div>
+
+          <label class="mt-6 block max-w-xs text-xs text-muted">
+            Guests
+            <select name="guests" class="field mt-1">
+              {Array.from({ length: settings.maxGuests }, (_, i) => <option value={i + 1} selected={i === 1}>{i + 1} {i === 0 ? 'guest' : 'guests'}</option>)}
+            </select>
+          </label>
+        </fieldset>
+
+        <!-- 2. Details -->
+        <fieldset>
+          <legend class="step-title"><span>02</span> Your details</legend>
+          <div class="mt-6 grid gap-4 sm:grid-cols-2">
+            <label class="block text-xs text-muted sm:col-span-2">
+              Full name
+              <input type="text" name="name" autocomplete="name" required maxlength="100" class="field mt-1" />
+            </label>
+            <label class="block text-xs text-muted">
+              Email
+              <input type="email" name="email" autocomplete="email" required maxlength="200" class="field mt-1" />
+            </label>
+            <label class="block text-xs text-muted">
+              Phone (with country code)
+              <input type="tel" name="phone" autocomplete="tel" required placeholder="+84 90 123 4567" class="field mt-1" />
+            </label>
+          </div>
+          <p class="mt-5 text-xs text-muted">How should we contact you?</p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            {
+              [
+                ['whatsapp', 'WhatsApp'],
+                ['zalo', 'Zalo'],
+                ['email', 'Email'],
+              ].map(([value, label], i) => (
+                <label class="chip">
+                  <input type="radio" name="contactMethod" value={value} checked={i === 0} class="sr-only" />
+                  {label}
+                </label>
+              ))
+            }
+          </div>
+          <label class="mt-5 block text-xs text-muted">
+            Message (optional)
+            <textarea name="message" rows="3" maxlength="1000" class="field mt-1" placeholder="Arrival time, special requests…"></textarea>
+          </label>
+          <!-- Left empty by people; spam bots fill it in. -->
+          <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+        </fieldset>
+
+        <!-- 3. Payment -->
+        <fieldset>
+          <legend class="step-title"><span>03</span> Payment</legend>
+          <div class="mt-6 grid gap-3 sm:grid-cols-3">
+            {
+              paymentOptions.map((opt, i) => (
+                <label class="pay-option">
+                  <input type="radio" name="paymentOption" value={opt} checked={i === 0} class="sr-only" />
+                  <span class="font-serif text-2xl">{paymentLabels[opt].title}</span>
+                  <span class="mt-1 block text-xs text-muted">{paymentLabels[opt].text}</span>
+                  <span class="mt-3 block text-sm" data-pay-amount={opt}>&nbsp;</span>
+                </label>
+              ))
+            }
+          </div>
+
+          <div class="mt-5 flex items-start gap-3 bg-white p-5 text-sm">
+            <Icon name="lucide:qr-code" class="mt-0.5 size-5 shrink-0 text-olive" aria-hidden="true" />
+            <p>
+              <strong class="font-normal">Bank transfer with VietQR.</strong>{' '}
+              <span class="text-muted">
+                After booking you'll get a QR code to scan in your banking app. We hold your dates for {settings.holdHours === 1 ? '1 hour' : `${settings.holdHours} hours`} while you pay.
+              </span>
+            </p>
+          </div>
+          <input type="hidden" name="paymentMethod" value="vietqr" />
+
+          <ul class="mt-5 space-y-2 text-xs leading-relaxed text-muted">
+            <li>· Free cancellation up to {settings.cancellationDays} days before arrival — your payment is refunded in full.</li>
+            <li>· After that, the amount paid in advance is not refundable.</li>
+            {settings.houseRules && <li>· {settings.houseRules}</li>}
+          </ul>
+        </fieldset>
+      </div>
+
+      <!-- Summary -->
+      <aside class="bg-white lg:sticky lg:top-8 lg:col-span-5" aria-labelledby="summary-title">
+        <div class="bg-forest px-8 py-6 text-white">
+          <h2 id="summary-title" class="font-serif text-3xl">Your stay</h2>
+          <p id="sum-dates" class="mt-1 text-sm text-white/75">Choose your dates on the calendar</p>
+        </div>
+        <div class="space-y-4 px-8 py-7 text-sm">
+          <dl id="sum-lines" class="space-y-2"></dl>
+          <div id="sum-totals" class="hidden space-y-2 border-t border-line pt-4">
+            <div class="flex justify-between text-base"><dt>Total</dt><dd id="sum-total"></dd></div>
+            <div class="flex justify-between font-normal text-forest"><dt>Pay now</dt><dd id="sum-now"></dd></div>
+            <div class="flex justify-between text-muted"><dt>Pay at check-in</dt><dd id="sum-later"></dd></div>
+          </div>
+          <p id="book-error" class="hidden bg-red-50 px-3 py-2 text-red-800" role="alert"></p>
+          <button type="submit" id="book-submit" class="btn-primary w-full justify-between disabled:cursor-not-allowed disabled:opacity-50" disabled>
+            <span>Book and pay</span>
+            <Icon name="lucide:arrow-right" class="size-4" aria-hidden="true" />
+          </button>
+          <p class="text-center text-xs text-muted">
+            Questions? <a class="underline underline-offset-4 hover:text-ink" href={`https://wa.me/${site.whatsapp}`} target="_blank" rel="noopener">Ask us on WhatsApp</a>
+          </p>
+        </div>
+      </aside>
+    </form>
+  </section>
+</Layout>
+
+<style>
+  @reference "../styles/global.css";
+
+  .step-title {
+    @apply flex items-baseline gap-4 font-serif text-3xl;
+  }
+  .step-title span {
+    @apply text-lg text-olive;
+  }
+  .cal-nav {
+    @apply flex size-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-sand disabled:opacity-30 disabled:hover:bg-transparent;
+  }
+  .chip {
+    @apply cursor-pointer border border-line bg-white px-4 py-2 text-sm transition-colors has-checked:border-forest has-checked:bg-forest has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-forest;
+  }
+  .pay-option {
+    @apply block cursor-pointer border border-line bg-white p-5 transition-colors has-checked:border-forest has-checked:ring-1 has-checked:ring-forest has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-forest;
+  }
+  :global(.cal-day) {
+    @apply flex aspect-square w-full items-center justify-center text-sm transition-colors;
+  }
+  :global(.cal-day:not(:disabled):hover) {
+    @apply bg-sand;
+  }
+  :global(.cal-day:disabled) {
+    @apply cursor-default text-muted/40;
+  }
+  :global(.cal-day[data-booked]) {
+    @apply bg-sand/70 text-muted/50 line-through;
+  }
+  :global(.cal-day[data-in-range]) {
+    @apply bg-forest/15 text-ink no-underline;
+  }
+  :global(.cal-day[aria-pressed='true']) {
+    @apply bg-forest text-white no-underline;
+  }
+</style>
+
+<script>
+  import { addDays, addMonths, formatDate, todayAtVilla } from '../lib/booking/dates';
+  import { amountDueNow, formatVnd, groupNights, quote, type PricingSettings, type Quote } from '../lib/booking/pricing';
+
+  type Config = PricingSettings & { bookAheadMonths: number };
+  const config: Config = JSON.parse(document.getElementById('booking-config')!.textContent!);
+
+  const form = document.getElementById('book-form') as HTMLFormElement;
+  const calendarEl = document.getElementById('calendar')!;
+  const statusEl = document.getElementById('cal-status')!;
+  const prevBtn = document.getElementById('cal-prev') as HTMLButtonElement;
+  const nextBtn = document.getElementById('cal-next') as HTMLButtonElement;
+  const submitBtn = document.getElementById('book-submit') as HTMLButtonElement;
+  const errorEl = document.getElementById('book-error')!;
+
+  const today = todayAtVilla();
+  const lastDay = addMonths(today, config.bookAheadMonths);
+  const firstMonth = today.slice(0, 7) + '-01';
+
+  const booked = new Set<string>(); // nights that are taken
+  let checkin: string | null = null;
+  let checkout: string | null = null;
+  let monthOffset = 0;
+  let current: Quote | null = null;
+
+  // Dates from the link, e.g. /book?checkin=2026-12-12&checkout=2026-12-15&guests=4
+  const params = new URLSearchParams(location.search);
+  const guestsParam = params.get('guests');
+  if (guestsParam) (form.elements.namedItem('guests') as unknown as HTMLSelectElement).value = guestsParam;
+
+  const isFree = (night: string) => night >= today && night < lastDay && !booked.has(night);
+
+  /** The last possible check-out date for a stay starting on `start`. */
+  function maxCheckout(start: string) {
+    let d = start;
+    while (isFree(d)) d = addDays(d, 1);
+    return d;
+  }
+
+  function choose(date: string) {
+    if (!checkin || checkout || date <= checkin) {
+      if (!isFree(date)) return;
+      checkin = date;
+      checkout = null;
+    } else if (date <= maxCheckout(checkin)) {
+      checkout = date;
+    } else if (isFree(date)) {
+      checkin = date;
+    }
+    render();
+  }
+
+  const monthsShown = () => (matchMedia('(min-width: 40rem)').matches ? 2 : 1);
+
+  function renderMonth(monthStart: string) {
+    const daysInMonth = Number(addDays(addMonths(monthStart, 1), -1).slice(8));
+    const lead = (new Date(monthStart + 'T00:00:00Z').getUTCDay() + 6) % 7; // weeks start on Monday
+    const pickingCheckout = checkin && !checkout;
+    const limit = pickingCheckout ? maxCheckout(checkin!) : null;
+
+    let cells = '';
+    for (let i = 0; i < lead; i++) cells += '<span></span>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${monthStart.slice(0, 8)}${String(day).padStart(2, '0')}`;
+      const selected = date === checkin || date === checkout;
+      const inRange = checkin && checkout && date > checkin && date < checkout;
+      const enabled = pickingCheckout ? (date > checkin! && date <= limit!) || isFree(date) : isFree(date);
+      const label = `${formatDate(date)}${booked.has(date) ? ', not available' : ''}`;
+      cells += `<button type="button" class="cal-day" data-date="${date}" aria-label="${label}" aria-pressed="${selected}"
+        ${enabled ? '' : 'disabled'} ${booked.has(date) ? 'data-booked' : ''} ${inRange ? 'data-in-range' : ''}>${day}</button>`;
+    }
+    const title = formatDate(monthStart, { month: 'long', year: 'numeric' });
+    return `<div>
+      <p class="mb-3 text-center font-serif text-xl">${title}</p>
+      <div class="grid grid-cols-7 text-center text-[0.65rem] uppercase tracking-wider text-muted">
+        ${['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => `<span class="pb-2">${d}</span>`).join('')}
+      </div>
+      <div class="grid grid-cols-7 gap-0.5">${cells}</div>
+    </div>`;
+  }
+
+  function render() {
+    const count = monthsShown();
+    const maxOffset = Number(lastDay.slice(0, 4)) * 12 + Number(lastDay.slice(5, 7)) - (Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7))) - count + 1;
+    monthOffset = Math.max(0, Math.min(monthOffset, maxOffset));
+    prevBtn.disabled = monthOffset === 0;
+    nextBtn.disabled = monthOffset >= maxOffset;
+    calendarEl.innerHTML = Array.from({ length: count }, (_, i) => renderMonth(addMonths(firstMonth, monthOffset + i))).join('');
+
+    if (statusEl.dataset.loaded !== 'true') return;
+    statusEl.textContent = !checkin ? 'Choose your check-in date' : !checkout ? 'Now choose your check-out date' : `${formatDate(checkin)} → ${formatDate(checkout)}`;
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const lines = document.getElementById('sum-lines')!;
+    const totals = document.getElementById('sum-totals')!;
+    const datesEl = document.getElementById('sum-dates')!;
+    current = null;
+    lines.innerHTML = '';
+    totals.classList.add('hidden');
+    document.querySelectorAll<HTMLElement>('[data-pay-amount]').forEach((el) => (el.innerHTML = '&nbsp;'));
+
+    if (!checkin || !checkout) {
+      datesEl.textContent = checkin ? `Check-in ${formatDate(checkin)} · choose check-out` : 'Choose your dates on the calendar';
+      submitBtn.disabled = true;
+      return;
+    }
+    datesEl.textContent = `${formatDate(checkin)} → ${formatDate(checkout)}`;
+    try {
+      current = quote(config, checkin, checkout);
+    } catch (e) {
+      lines.innerHTML = `<p class="text-red-800">${(e as Error).message}</p>`;
+      submitBtn.disabled = true;
+      return;
+    }
+
+    const row = (label: string, value: string) =>
+      `<div class="flex justify-between gap-4"><dt class="text-muted">${label}</dt><dd class="shrink-0">${value}</dd></div>`;
+    lines.innerHTML =
+      groupNights(current.nights)
+        .map((g) => row(`${g.count} ${g.count === 1 ? 'night' : 'nights'} × ${formatVnd(g.price)}${g.season ? ` <span class="text-xs">(${g.season})</span>` : ''}`, formatVnd(g.count * g.price)))
+        .join('') + (current.cleaningFee ? row('Cleaning fee', formatVnd(current.cleaningFee)) : '');
+
+    const percent = Number(new FormData(form).get('paymentOption'));
+    const now = amountDueNow(current.total, percent);
+    document.getElementById('sum-total')!.textContent = formatVnd(current.total);
+    document.getElementById('sum-now')!.textContent = formatVnd(now);
+    document.getElementById('sum-later')!.textContent = formatVnd(current.total - now);
+    document.querySelectorAll<HTMLElement>('[data-pay-amount]').forEach((el) => {
+      el.textContent = formatVnd(amountDueNow(current!.total, Number(el.dataset.payAmount)));
+    });
+    totals.classList.remove('hidden');
+    submitBtn.disabled = false;
+  }
+
+  calendarEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.cal-day');
+    if (btn && !btn.disabled) {
+      choose(btn.dataset.date!);
+      calendarEl.querySelector<HTMLElement>(`[data-date="${btn.dataset.date}"]`)?.focus();
+    }
+  });
+  prevBtn.addEventListener('click', () => { monthOffset--; render(); });
+  nextBtn.addEventListener('click', () => { monthOffset++; render(); });
+  document.getElementById('cal-clear')!.addEventListener('click', () => { checkin = checkout = null; render(); });
+  form.addEventListener('change', (e) => {
+    if ((e.target as HTMLInputElement).name === 'paymentOption') updateSummary();
+  });
+  matchMedia('(min-width: 40rem)').addEventListener('change', render);
+
+  async function loadAvailability() {
+    try {
+      const res = await fetch('/api/availability');
+      if (!res.ok) throw new Error();
+      const { booked: ranges } = (await res.json()) as { booked: { start: string; end: string }[] };
+      booked.clear();
+      for (const r of ranges) for (let d = r.start; d < r.end && d < lastDay; d = addDays(d, 1)) booked.add(d);
+    } catch {
+      statusEl.textContent = 'Could not load availability. Please refresh the page.';
+      return false;
+    }
+    statusEl.dataset.loaded = 'true';
+    return true;
+  }
+
+  function showError(message: string) {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.add('hidden');
+    if (!current || !checkin || !checkout) return showError('Please choose your dates.');
+    for (const name of ['name', 'email', 'phone']) {
+      const input = form.elements.namedItem(name) as HTMLInputElement;
+      if (!input.checkValidity() || !input.value.trim()) {
+        input.focus();
+        return showError(name === 'email' ? 'Please enter a valid email address.' : `Please enter your ${name}.`);
+      }
+    }
+
+    const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    submitBtn.disabled = true;
+    submitBtn.querySelector('span')!.textContent = 'Booking…';
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, checkin, checkout }),
+      });
+      const result = (await res.json()) as { url?: string; error?: string };
+      if (result.url) return location.assign(result.url);
+      showError(result.error ?? 'Something went wrong. Please try again.');
+      if (res.status === 409) {
+        await loadAvailability();
+        render();
+      }
+    } catch {
+      showError('Could not connect. Please check your internet and try again.');
+    }
+    submitBtn.disabled = !current;
+    submitBtn.querySelector('span')!.textContent = 'Book and pay';
+  });
+
+  render();
+  loadAvailability().then((ok) => {
+    if (!ok) return;
+    const ci = params.get('checkin');
+    const co = params.get('checkout');
+    if (ci && isFree(ci)) {
+      checkin = ci;
+      if (co && co > ci && co <= maxCheckout(ci)) checkout = co;
+      const months = Number(ci.slice(0, 4)) * 12 + Number(ci.slice(5, 7)) - (Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7)));
+      monthOffset = Math.max(0, months);
+    }
+    render();
+  });
+</script>

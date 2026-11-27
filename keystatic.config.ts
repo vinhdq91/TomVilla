@@ -1,6 +1,7 @@
 import { config, fields, collection, singleton } from '@keystatic/core';
 import { amenityIcons } from './src/lib/icons';
 import { galleryCategories } from './src/lib/gallery';
+import { banks } from './src/lib/booking/banks';
 
 // Everything editable in the admin panel (/keystatic) is defined here.
 // Content is saved as YAML files in src/content and images in src/assets/images.
@@ -42,6 +43,111 @@ export default config({
           description: 'Keep ticked until the real photos and details are in, then untick to launch.',
           defaultValue: true,
         }),
+      },
+    }),
+
+    booking: singleton({
+      label: 'Booking & prices',
+      path: 'src/content/singletons/booking',
+      format: { data: 'yaml' },
+      schema: {
+        nightlyPrice: fields.integer({
+          label: 'Nightly price (VND)',
+          description: 'Normal price per night, e.g. 2500000',
+          validation: { isRequired: true, min: 0 },
+          defaultValue: 2500000,
+        }),
+        weekendPrice: fields.integer({
+          label: 'Weekend price (VND)',
+          description: 'Price for Friday and Saturday nights. Leave 0 to use the nightly price.',
+          defaultValue: 0,
+          validation: { min: 0 },
+        }),
+        minNights: fields.integer({ label: 'Minimum nights', defaultValue: 2, validation: { isRequired: true, min: 1 } }),
+        maxGuests: fields.integer({ label: 'Maximum guests', defaultValue: 8, validation: { isRequired: true, min: 1 } }),
+        cleaningFee: fields.integer({
+          label: 'Cleaning fee (VND)',
+          description: 'Added once per stay. 0 for none.',
+          defaultValue: 0,
+          validation: { min: 0 },
+        }),
+        seasons: fields.array(
+          fields.object({
+            name: fields.text({ label: 'Season name', description: 'e.g. Tết holiday, Summer' }),
+            start: fields.date({ label: 'First night', validation: { isRequired: true } }),
+            end: fields.date({ label: 'Last night', validation: { isRequired: true } }),
+            nightlyPrice: fields.integer({ label: 'Nightly price (VND)', validation: { isRequired: true, min: 0 } }),
+            weekendPrice: fields.integer({
+              label: 'Weekend price (VND)',
+              description: 'Friday and Saturday nights. 0 = same as the nightly price.',
+              defaultValue: 0,
+            }),
+            minNights: fields.integer({
+              label: 'Minimum nights',
+              description: '0 = use the normal minimum.',
+              defaultValue: 0,
+            }),
+          }),
+          {
+            label: 'Seasonal prices',
+            description: 'Nights inside a season use its price instead of the normal one.',
+            itemLabel: (p) => `${p.fields.name.value || 'Season'} (${p.fields.start.value ?? '?'} → ${p.fields.end.value ?? '?'})`,
+          },
+        ),
+        paymentOptions: fields.multiselect({
+          label: 'Payment choices for guests',
+          options: [
+            { label: '30% deposit', value: '30' },
+            { label: '50% deposit', value: '50' },
+            { label: 'Pay in full', value: '100' },
+          ],
+          defaultValue: ['30', '50', '100'],
+        }),
+        cancellationDays: fields.select({
+          label: 'Free cancellation',
+          description: 'Guests get their payment back if they cancel at least this long before arrival.',
+          options: [
+            { label: 'Up to 7 days before arrival', value: '7' },
+            { label: 'Up to 14 days before arrival', value: '14' },
+          ],
+          defaultValue: '14',
+        }),
+        holdHours: fields.integer({
+          label: 'Hold dates while unpaid (hours)',
+          description: 'Dates are released if the guest has not paid within this time.',
+          defaultValue: 2,
+          validation: { isRequired: true, min: 1 },
+        }),
+        bookAheadMonths: fields.integer({
+          label: 'Bookable months ahead',
+          defaultValue: 12,
+          validation: { isRequired: true, min: 1 },
+        }),
+        bank: fields.object(
+          {
+            bin: fields.select({
+              label: 'Bank',
+              options: banks.map((b) => ({ label: b.label, value: b.value })),
+              defaultValue: banks[0].value,
+            }),
+            accountNumber: fields.text({ label: 'Account number' }),
+            accountName: fields.text({ label: 'Account holder name', description: 'As on the bank account, e.g. NGUYEN VAN A' }),
+          },
+          { label: 'Bank account for VietQR payments' },
+        ),
+        calendarFeeds: fields.array(
+          fields.object({
+            source: fields.text({ label: 'Name', description: 'e.g. Airbnb, Booking.com' }),
+            url: fields.url({ label: 'Calendar (iCal) link', validation: { isRequired: true } }),
+          }),
+          {
+            label: 'Calendar sync links',
+            description: 'Dates booked on these platforms are blocked on this website.',
+            itemLabel: (p) => p.fields.source.value || 'Calendar',
+          },
+        ),
+        intro: fields.text({ label: 'Booking page intro', multiline: true }),
+        houseRules: fields.text({ label: 'House rules', multiline: true }),
       },
     }),
 

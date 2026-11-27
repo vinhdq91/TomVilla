@@ -21,6 +21,40 @@ const site = defineCollection({
   }),
 });
 
+// YAML may store dates as text or as real dates; always give YYYY-MM-DD text.
+const isoDate = z.union([z.string(), z.date()]).transform((v) => (typeof v === 'string' ? v : v.toISOString().slice(0, 10)));
+
+const booking = defineCollection({
+  loader: glob({ pattern: 'booking.yaml', base: './src/content/singletons' }),
+  schema: z.object({
+    nightlyPrice: z.number().int().min(0),
+    weekendPrice: z.number().int().nullish().transform((v) => v ?? 0),
+    minNights: z.number().int().min(1).default(1),
+    maxGuests: z.number().int().min(1),
+    cleaningFee: z.number().int().nullish().transform((v) => v ?? 0),
+    seasons: z
+      .array(
+        z.object({
+          name: z.string(),
+          start: isoDate,
+          end: isoDate,
+          nightlyPrice: z.number().int().min(0),
+          weekendPrice: z.number().int().nullish().transform((v) => v ?? 0),
+          minNights: z.number().int().nullish().transform((v) => v ?? 0),
+        }),
+      )
+      .default([]),
+    paymentOptions: z.array(z.enum(['30', '50', '100'])).min(1).default(['30', '50', '100']),
+    cancellationDays: z.enum(['7', '14']).transform(Number),
+    holdHours: z.number().int().min(1).default(2),
+    bookAheadMonths: z.number().int().min(1).default(12),
+    bank: z.object({ bin: z.string(), accountNumber: z.string(), accountName: z.string() }),
+    calendarFeeds: z.array(z.object({ source: z.string(), url: z.url() })).default([]),
+    intro: z.string().default(''),
+    houseRules: z.string().default(''),
+  }),
+});
+
 const home = defineCollection({
   loader: glob({ pattern: 'home.yaml', base: './src/content/singletons' }),
   schema: ({ image }) =>
@@ -78,4 +112,4 @@ const gallery = defineCollection({
     }),
 });
 
-export const collections = { site, home, spaces, gallery };
+export const collections = { site, booking, home, spaces, gallery };

@@ -1,0 +1,225 @@
+---
+import { Icon } from 'astro-icon/components';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { addBlock, listBlocks, listBookings, removeBlock, type View } from '../../../lib/admin/bookings';
+import { getFeedBookings } from '../../../lib/booking/availability';
+import { addDays, addMonths, formatDate, isIsoDate, todayAtVilla } from '../../../lib/booking/dates';
+import { formatVnd } from '../../../lib/booking/pricing';
+import { displayStatus, getBookingSettings, statusLabels, type DisplayStatus } from '../../../lib/booking/server';
+
+export const prerender = false;
+
+// ---- Closed dates (form posts) ----
+let blockError = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  if (form.get('action') === 'block') {
+    const first = String(form.get('first'));
+    const last = String(form.get('last') || first);
+    if (!isIsoDate(first) || !isIsoDate(last) || last < first) blockError = 'Please choose a valid first and last night.';
+    else blockError = (await addBlock(first, addDays(last, 1), String(form.get('reason') ?? '').trim().slice(0, 200))) ?? '';
+  } else if (form.get('action') === 'unblock') {
+    await removeBlock(Number(form.get('id')));
+  }
+  if (!blockError) return Astro.redirect(Astro.url.pathname + Astro.url.search, 303);
+}
+
+const views: { id: View; label: string }[] = [
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'pending', label: 'Waiting for you' },
+  { id: 'past', label: 'Past' },
+  { id: 'cancelled', label: 'Cancelled / expired' },
+  { id: 'all', label: 'All' },
+];
+const viewParam = Astro.url.searchParams.get('view') as View;
+const view = views.some((v) => v.id === viewParam) ? viewParam : 'upcoming';
+
+const today = todayAtVilla();
+const monthParam = Astro.url.searchParams.get('month') ?? '';
+const firstMonth = /^\d{4}-\d{2}$/.test(monthParam) ? `${monthParam}-01` : today.slice(0, 8) + '01';
+const monthLink = (m: string) => `?view=${view}&month=${m.slice(0, 7)}`;
+
+const settings = await getBookingSettings();
+const [list, active, closed, external] = await Promise.all([
+  listBookings(view),
+  listBookings('upcoming'),
+  listBlocks(),
+  getFeedBookings(settings.calendarFeeds),
+]);
+
+// ---- Calendar overview: what occupies each night ----
+type Cell = { kind: 'confirmed' | 'pending' | 'blocked' | 'external'; label: string; href?: string };
+function nightInfo(date: string): Cell | undefined {
+  const b = active.find((x) => x.checkin <= date && date < x.checkout);
+  if (b) return { kind: displayStatus(b) === 'confirmed' ? 'confirmed' : 'pending', label: `${b.code} · ${b.name}`, href: `/admin/bookings/${b.id}` };
+  const c = closed.find((x) => x.start <= date && date < x.end);
+  if (c) return { kind: 'blocked', label: `Closed${c.reason ? ': ' + c.reason : ''}` };
+  const e = external.find((x) => x.start <= date && date < x.end);
+  if (e) return { kind: 'external', label: e.source };
+}
+const months = [0, 1, 2].map((i) => {
+  const start = addMonths(firstMonth, i);
+  const days = Number(addDays(addMonths(start, 1), -1).slice(8));
+  const lead = (new Date(start + 'T00:00:00Z').getUTCDay() + 6) % 7;
+  return {
+    title: formatDate(start, { month: 'long', year: 'numeric' }),
+    lead,
+    days: Array.from({ length: days }, (_, d) => {
+      const date = start.slice(0, 8) + String(d + 1).padStart(2, '0');
+      return { date, day: d + 1, info: nightInfo(date) };
+    }),
+  };
+});
+const cellColors: Record<Cell['kind'], string> = {
+  confirmed: 'bg-forest text-white',
+  pending: 'bg-amber-300 text-amber-950',
+  blocked: 'bg-ink/70 text-white',
+  external: 'bg-olive text-white',
+};
+
+const statusColors: Record<DisplayStatus, string> = {
+  pending: 'bg-amber-100 text-amber-900',
+  paid: 'bg-sky-100 text-sky-900',
+  confirmed: 'bg-forest/15 text-forest',
+  completed: 'bg-sand text-muted',
+  expired: 'bg-red-50 text-red-800',
+  cancelled: 'bg-sand text-muted',
+};
+---
+
+<AdminLayout title="Bookings">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <h1 class="font-serif text-5xl">Bookings</h1>
+    <a href="/calendar.ics" class="text-sm text-muted underline underline-offset-4 hover:text-ink">Calendar link for Airbnb / Booking.com</a>
+  </div>
+
+  <!-- List -->
+  <nav class="mt-8 -mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0" aria-label="Filter bookings">
+    <div class="flex w-max gap-2">
+      {
+        views.map((v) => (
+          <a
+            href={`?view=${v.id}`}
+            aria-current={v.id === view ? 'page' : undefined}
+            class="border border-line bg-white px-4 py-2 text-sm aria-[current=page]:border-forest aria-[current=page]:bg-forest aria-[current=page]:text-white"
+          >
+            {v.label}
+          </a>
+        ))
+      }
+    </div>
+  </nav>
+
+  {
+    list.length === 0 ? (
+      <p class="mt-6 bg-white p-8 text-muted">No bookings here yet.</p>
+    ) : (
+      <ul class="mt-6 divide-y divide-line bg-white">
+        {list.map((b) => {
+          const s = displayStatus(b);
+          return (
+            <li>
+              <a href={`/admin/bookings/${b.id}`} class="grid gap-x-6 gap-y-1 px-5 py-4 hover:bg-cream sm:grid-cols-12 sm:items-center">
+                <span class="sm:col-span-3">
+                  <span class="block">{b.name}</span>
+                  <span class="text-xs text-muted">
+                    {b.code} · {b.guests} guests
+                  </span>
+                </span>
+                <span class="text-sm sm:col-span-4">
+                  {formatDate(b.checkin)} → {formatDate(b.checkout)}
+                  <span class="text-muted"> · {b.nights}n</span>
+                </span>
+                <span class="text-sm sm:col-span-3">
+                  {formatVnd(b.total)}
+                  <span class="block text-xs text-muted">paid {formatVnd(b.amountPaid)}</span>
+                </span>
+                <span class="sm:col-span-2 sm:text-right">
+                  <span class:list={['inline-block px-2.5 py-1 text-xs', statusColors[s]]}>{statusLabels[s]}</span>
+                </span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    )
+  }
+
+  <!-- Calendar -->
+  <section class="mt-14" aria-labelledby="cal-title">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h2 id="cal-title" class="font-serif text-3xl">Calendar</h2>
+      <div class="flex items-center gap-2">
+        <a href={monthLink(addMonths(firstMonth, -3))} class="flex size-9 items-center justify-center bg-white hover:bg-sand" aria-label="Previous months">
+          <Icon name="lucide:chevron-left" class="size-5" aria-hidden="true" />
+        </a>
+        <a href={monthLink(today)} class="bg-white px-3 py-2 text-sm hover:bg-sand">Today</a>
+        <a href={monthLink(addMonths(firstMonth, 3))} class="flex size-9 items-center justify-center bg-white hover:bg-sand" aria-label="Next months">
+          <Icon name="lucide:chevron-right" class="size-5" aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+      <span class="flex items-center gap-2"><span class="size-3 bg-forest"></span>Confirmed</span>
+      <span class="flex items-center gap-2"><span class="size-3 bg-amber-300"></span>Waiting for payment / confirmation</span>
+      <span class="flex items-center gap-2"><span class="size-3 bg-olive"></span>Other platforms</span>
+      <span class="flex items-center gap-2"><span class="size-3 bg-ink/70"></span>Closed</span>
+    </div>
+    <div class="mt-4 grid gap-6 bg-white p-5 md:grid-cols-3">
+      {
+        months.map((m) => (
+          <div>
+            <p class="mb-2 text-center font-serif text-xl">{m.title}</p>
+            <div class="grid grid-cols-7 gap-0.5 text-center text-xs">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => <span class="pb-1 text-muted">{d}</span>)}
+              {Array.from({ length: m.lead }, () => <span />)}
+              {m.days.map(({ date, day, info }) => {
+                const cls = ['flex aspect-square items-center justify-center', info ? cellColors[info.kind] : 'bg-cream', date === today && 'ring-2 ring-inset ring-ink'];
+                return info?.href ? (
+                  <a href={info.href} title={info.label} class:list={[...cls, 'hover:opacity-80']}>{day}</a>
+                ) : (
+                  <span title={info?.label} class:list={cls}>{day}</span>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- Closed dates -->
+  <section class="mt-14" aria-labelledby="closed-title">
+    <h2 id="closed-title" class="font-serif text-3xl">Closed dates</h2>
+    <p class="mt-1 text-sm text-muted">Nights guests can't book, e.g. maintenance or family visits.</p>
+
+    <form method="post" class="mt-5 grid gap-3 bg-white p-5 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
+      <input type="hidden" name="action" value="block" />
+      <label class="block text-xs text-muted">First night <input type="date" name="first" required min={today} class="field mt-1" /></label>
+      <label class="block text-xs text-muted">Last night <input type="date" name="last" required min={today} class="field mt-1" /></label>
+      <label class="block text-xs text-muted">Reason (only you see this) <input type="text" name="reason" maxlength="200" class="field mt-1" /></label>
+      <button class="btn-primary justify-center">Close dates</button>
+      {blockError && <p class="text-sm text-red-700 sm:col-span-4" role="alert">{blockError}</p>}
+    </form>
+
+    {
+      closed.length > 0 && (
+        <ul class="mt-3 divide-y divide-line bg-white">
+          {closed.map((c) => (
+            <li class="flex items-center justify-between gap-4 px-5 py-3 text-sm">
+              <span>
+                {formatDate(c.start)} → {formatDate(addDays(c.end, -1))}
+                {c.reason && <span class="text-muted"> · {c.reason}</span>}
+              </span>
+              <form method="post">
+                <input type="hidden" name="action" value="unblock" />
+                <input type="hidden" name="id" value={c.id} />
+                <button class="text-muted underline underline-offset-4 hover:text-red-700">Reopen</button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

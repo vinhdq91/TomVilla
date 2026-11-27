@@ -9,13 +9,14 @@ import Faqs from '../components/home/Faqs.astro';
 
 const site = (await getEntry('site', 'site'))!.data;
 const home = (await getEntry('home', 'home'))!.data;
+const booking = (await getEntry('booking', 'booking'))!.data;
 const spaces = (await getCollection('spaces')).sort((a, b) => a.data.order - b.data.order);
 ---
 
 <Layout>
   <Hero {...home.hero} />
   <Villa content={home.villa} spaces={spaces} />
-  <Stay content={home.stay} villaName={site.name} whatsapp={site.whatsapp} email={site.email} />
+  <Stay content={home.stay} villaName={site.name} whatsapp={site.whatsapp} email={site.email} maxGuests={booking.maxGuests} />
   <Location content={home.location} mapQuery={site.mapQuery} />
   <Faqs faqs={home.faqs} />
 </Layout>

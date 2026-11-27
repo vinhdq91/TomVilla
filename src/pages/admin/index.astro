@@ -1,0 +1,40 @@
+---
+import { Icon } from 'astro-icon/components';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { countAwaiting, listBookings } from '../../lib/admin/bookings';
+import { formatDate } from '../../lib/booking/dates';
+
+export const prerender = false;
+
+const [awaiting, upcoming] = await Promise.all([countAwaiting(), listBookings('upcoming')]);
+const next = upcoming.find((b) => b.status === 'confirmed');
+---
+
+<AdminLayout title="Owner">
+  <h1 class="font-serif text-5xl">Welcome back</h1>
+  <p class="mt-2 text-muted">What would you like to manage?</p>
+
+  <div class="mt-10 grid gap-6 md:grid-cols-2">
+    <a href="/admin/bookings" class="group block bg-white p-8 transition-shadow hover:shadow-lg">
+      <Icon name="lucide:calendar-days" class="size-8 text-olive" aria-hidden="true" />
+      <h2 class="mt-5 font-serif text-3xl group-hover:underline group-hover:underline-offset-8">Bookings</h2>
+      <p class="mt-2 text-sm text-muted">Guests, payments, calendar and closed dates. Changes apply instantly.</p>
+      <ul class="mt-5 space-y-1 text-sm">
+        <li class:list={[awaiting > 0 && 'text-amber-800']}>
+          {awaiting} {awaiting === 1 ? 'booking' : 'bookings'} waiting for you
+        </li>
+        <li class="text-muted">{upcoming.length} upcoming {upcoming.length === 1 ? 'stay' : 'stays'}</li>
+        {next && <li class="text-muted">Next arrival: {next.name}, {formatDate(next.checkin)}</li>}
+      </ul>
+    </a>
+
+    <a href="/keystatic" class="group block bg-white p-8 transition-shadow hover:shadow-lg">
+      <Icon name="lucide:pencil-line" class="size-8 text-olive" aria-hidden="true" />
+      <h2 class="mt-5 font-serif text-3xl group-hover:underline group-hover:underline-offset-8">Website content</h2>
+      <p class="mt-2 text-sm text-muted">
+        Text, photos, prices and seasons, payment and cancellation settings. Saved changes go live in about 2 minutes.
+      </p>
+      <p class="mt-5 text-sm text-muted">Prices are under <em>Booking &amp; prices</em>.</p>
+    </a>
+  </div>
+</AdminLayout>

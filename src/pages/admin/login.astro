@@ -1,0 +1,49 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Logo from '../../components/Logo.astro';
+import { checkPassword, hasSession, isPasswordSet, startSession } from '../../lib/admin/auth';
+
+export const prerender = false;
+
+// Only allow going back to an /admin page after login.
+const nextParam = Astro.url.searchParams.get('next') ?? '';
+const next = /^\/admin(\/|$|\?)/.test(nextParam) ? nextParam : '/admin';
+
+if (await hasSession(Astro.cookies)) return Astro.redirect(next);
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  if (await checkPassword(String(form.get('password') ?? ''))) {
+    await startSession(Astro.cookies, Astro.url.protocol === 'https:');
+    return Astro.redirect(next);
+  }
+  // Slow down password guessing.
+  await new Promise((r) => setTimeout(r, 1500));
+  error = 'Wrong password.';
+  Astro.response.status = 401;
+}
+---
+
+<AdminLayout title="Log in" bare>
+  <div class="mx-auto mt-[10vh] max-w-sm bg-white p-8">
+    <Logo class="h-12 w-9 text-forest" />
+    <h1 class="mt-6 font-serif text-4xl">Owner login</h1>
+    {
+      isPasswordSet() ? (
+        <form method="post" class="mt-6 space-y-4">
+          <label class="block text-xs text-muted">
+            Password
+            <input type="password" name="password" autocomplete="current-password" required autofocus class="field mt-1" />
+          </label>
+          {error && <p class="text-sm text-red-700" role="alert">{error}</p>}
+          <button class="btn-primary w-full justify-center">Log in</button>
+        </form>
+      ) : (
+        <p class="mt-6 text-sm text-red-700">
+          No owner password is set yet. Add a secret named <code>ADMIN_PASSWORD</code> (at least 8 characters) in Cloudflare.
+        </p>
+      )
+    }
+  </div>
+</AdminLayout>

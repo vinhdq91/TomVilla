@@ -7,6 +7,7 @@ export const nav = [
   { href: '/#stay', label: 'Your Stay' },
   { href: '/#location', label: 'Location' },
   { href: '/#faqs', label: 'FAQs' },
+  { href: '/book', label: 'Book' },
   { href: '/#contact', label: 'Contact' },
 ] as const;
 

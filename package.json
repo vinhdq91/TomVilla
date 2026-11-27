@@ -12,7 +12,11 @@
     "astro": "astro",
     "generate-types": "wrangler types",
     "admin": "cross-env KEYSTATIC=1 astro dev",
-    "admin:github": "cross-env KEYSTATIC=1 PUBLIC_KEYSTATIC_STORAGE=github astro dev"
+    "admin:github": "cross-env KEYSTATIC=1 PUBLIC_KEYSTATIC_STORAGE=github astro dev",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply tomvilla --local",
+    "db:migrate:remote": "wrangler d1 migrations apply tomvilla --remote",
+    "deploy": "wrangler d1 migrations apply tomvilla --remote && wrangler deploy"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.6",
@@ -26,6 +30,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "astro": "^7.4.7",
+    "drizzle-orm": "^0.45.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tailwindcss": "^4.3.5",
@@ -38,11 +43,14 @@
     "@types/node": "^26.6.6",
     "astro-icon": "^1.2.0",
     "cross-env": "^10.1.0",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^6.0.3"
   },
   "allowScripts": {
-    "esbuild@0.28.2": true,
     "workerd@1.20261101.1": true,
-    "workerd@1.20261104.1": true
+    "workerd@1.20261104.1": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.28.2": true
   }
 }

@@ -1,0 +1,194 @@
+---
+import { getEntry } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import Layout from '../../layouts/Layout.astro';
+import { bankName } from '../../lib/booking/banks';
+import { addDays, formatDate, VILLA_TIME_ZONE } from '../../lib/booking/dates';
+import { formatVnd, groupNights, type Night } from '../../lib/booking/pricing';
+import { displayStatus, getBookingByToken, getBookingSettings, statusLabels } from '../../lib/booking/server';
+
+export const prerender = false;
+
+// The guest's private booking page. The link contains a long secret token,
+// so only the guest (who received the link) can open it.
+const token = Astro.params.token ?? '';
+const booking = /^[a-z2-9]{24}$/.test(token) ? await getBookingByToken(token) : undefined;
+if (!booking) return new Response('Booking not found', { status: 404 });
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const site = (await getEntry('site', 'site'))!.data;
+const settings = await getBookingSettings();
+const status = displayStatus(booking);
+const details = JSON.parse(booking.priceDetails) as { nights: Night[]; cleaningFee: number };
+const balance = booking.total - Math.max(booking.amountPaid, status === 'pending' ? booking.amountDue : 0);
+const freeCancelUntil = addDays(booking.checkin, -booking.cancellationDays);
+const holdUntil = new Date(booking.holdExpiresAt).toLocaleString('en-GB', {
+  timeZone: VILLA_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  day: 'numeric',
+  month: 'short',
+});
+
+const { bin, accountNumber, accountName } = settings.bank;
+const qrUrl =
+  `https://img.vietqr.io/image/${encodeURIComponent(bin)}-${encodeURIComponent(accountNumber)}-compact2.png?` +
+  new URLSearchParams({ amount: String(booking.amountDue), addInfo: booking.code, accountName }).toString();
+
+const whatsappText = encodeURIComponent(
+  status === 'pending'
+    ? `Hello ${site.name}! I have paid for booking ${booking.code} (${formatVnd(booking.amountDue)}).`
+    : `Hello ${site.name}! A question about my booking ${booking.code}:`,
+);
+
+const banner: Record<string, { icon: string; title: string; text: string; tone: string }> = {
+  pending: {
+    icon: 'lucide:clock',
+    title: 'Your dates are held — please pay to secure them',
+    text: `We're holding these dates until ${holdUntil} (Vietnam time). Scan the QR code below with your banking app.`,
+    tone: 'bg-amber-50 text-amber-900',
+  },
+  expired: {
+    icon: 'lucide:clock-alert',
+    title: 'The hold on your dates has expired',
+    text: "We didn't receive the payment in time, so the dates were released. If you already paid, don't worry — message us and we'll sort it out.",
+    tone: 'bg-red-50 text-red-900',
+  },
+  paid: {
+    icon: 'lucide:circle-check',
+    title: 'Payment received',
+    text: "Thank you! We'll confirm your stay very soon.",
+    tone: 'bg-forest/10 text-forest',
+  },
+  confirmed: {
+    icon: 'lucide:circle-check',
+    title: 'Your stay is confirmed',
+    text: `We look forward to welcoming you to ${site.name}. We'll message you before your arrival with directions.`,
+    tone: 'bg-forest/10 text-forest',
+  },
+  completed: { icon: 'lucide:heart', title: 'Thank you for staying with us', text: 'We hope to see you again.', tone: 'bg-sand text-ink' },
+  cancelled: { icon: 'lucide:circle-x', title: 'This booking was cancelled', text: 'Message us if you have any questions.', tone: 'bg-sand text-ink' },
+};
+const b = banner[status];
+---
+
+<Layout title={`Booking ${booking.code} · ${site.name}`} noindex>
+  <section class="section pt-10 lg:pt-12">
+    <p class="eyebrow">Booking {booking.code}</p>
+    <h1 class="mt-4 text-5xl leading-tight sm:text-6xl">Hello {booking.name.split(' ')[0]}</h1>
+
+    <div class:list={['mt-8 flex max-w-3xl gap-4 p-5', b.tone]} role="status">
+      <Icon name={b.icon} class="mt-0.5 size-6 shrink-0" aria-hidden="true" />
+      <div>
+        <p class="font-normal">{b.title}</p>
+        <p class="mt-1 text-sm opacity-90">{b.text}</p>
+      </div>
+    </div>
+
+    <div class="mt-10 grid gap-10 lg:grid-cols-12 lg:items-start">
+      {
+        status === 'pending' && (
+          <div class="bg-white p-8 lg:col-span-7">
+            <h2 class="font-serif text-3xl">Pay by bank transfer</h2>
+            <p class="mt-2 text-sm text-muted">
+              Open your banking app, choose <em>Scan QR</em>, and the amount and note fill in automatically.
+            </p>
+            <div class="mt-6 grid gap-8 sm:grid-cols-2 sm:items-center">
+              <img src={qrUrl} alt={`VietQR code to pay ${formatVnd(booking.amountDue)}`} width="300" height="300" class="mx-auto w-full max-w-72 border border-line" referrerpolicy="no-referrer" />
+              <dl class="space-y-3 text-sm">
+                {[
+                  ['Bank', bankName(bin), false],
+                  ['Account number', accountNumber, true],
+                  ['Account name', accountName, false],
+                  ['Amount', formatVnd(booking.amountDue), String(booking.amountDue)],
+                  ['Transfer note', booking.code, true],
+                ].map(([label, value, copy]) => (
+                  <div>
+                    <dt class="text-xs text-muted">{label}</dt>
+                    <dd class="flex items-center gap-2 text-base">
+                      {value}
+                      {copy && (
+                        <button type="button" class="copy text-muted hover:text-ink" data-copy={copy === true ? value : copy} aria-label={`Copy ${label}`}>
+                          <Icon name="lucide:copy" class="size-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <p class="mt-6 text-sm text-muted">
+              Please keep the note <strong class="font-normal text-ink">{booking.code}</strong> so we can match your payment. Once it arrives
+              we'll confirm your stay on {booking.contactMethod === 'zalo' ? 'Zalo' : booking.contactMethod === 'email' ? 'email' : 'WhatsApp'}.
+            </p>
+            <a href={`https://wa.me/${site.whatsapp}?text=${whatsappText}`} target="_blank" rel="noopener" class="btn-primary mt-6">
+              <Icon name="lucide:message-circle" class="size-4" aria-hidden="true" /> I've paid — tell the host
+            </a>
+          </div>
+        )
+      }
+
+      <div class:list={['bg-white', status === 'pending' ? 'lg:col-span-5' : 'lg:col-span-7']}>
+        <div class="bg-forest px-8 py-6 text-white">
+          <h2 class="font-serif text-3xl">Your stay</h2>
+          <p class="mt-1 text-sm text-white/75">{statusLabels[status]}</p>
+        </div>
+        <dl class="space-y-2 px-8 py-7 text-sm">
+          <div class="flex justify-between gap-4"><dt class="text-muted">Check-in</dt><dd>{formatDate(booking.checkin)}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Check-out</dt><dd>{formatDate(booking.checkout)}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-muted">Guests</dt><dd>{booking.guests}</dd></div>
+          <div class="mt-5! space-y-2 border-t border-line pt-4">
+            {
+              groupNights(details.nights).map((g) => (
+                <div class="flex justify-between gap-4">
+                  <dt class="text-muted">
+                    {g.count} {g.count === 1 ? 'night' : 'nights'} × {formatVnd(g.price)}
+                  </dt>
+                  <dd class="shrink-0">{formatVnd(g.count * g.price)}</dd>
+                </div>
+              ))
+            }
+            {details.cleaningFee > 0 && (
+              <div class="flex justify-between gap-4"><dt class="text-muted">Cleaning fee</dt><dd>{formatVnd(details.cleaningFee)}</dd></div>
+            )}
+          </div>
+          <div class="mt-4! space-y-2 border-t border-line pt-4">
+            <div class="flex justify-between text-base"><dt>Total</dt><dd>{formatVnd(booking.total)}</dd></div>
+            {status === 'pending' ? (
+              <div class="flex justify-between text-forest"><dt>To pay now</dt><dd>{formatVnd(booking.amountDue)}</dd></div>
+            ) : (
+              booking.amountPaid > 0 && <div class="flex justify-between text-forest"><dt>Paid</dt><dd>{formatVnd(booking.amountPaid)}</dd></div>
+            )}
+            {balance > 0 && status !== 'cancelled' && (
+              <div class="flex justify-between text-muted"><dt>Pay at check-in</dt><dd>{formatVnd(balance)}</dd></div>
+            )}
+          </div>
+        </dl>
+        <div class="border-t border-line px-8 py-6 text-xs leading-relaxed text-muted">
+          <p>
+            Free cancellation until {formatDate(freeCancelUntil)} ({booking.cancellationDays} days before arrival). After that, the amount paid in
+            advance is not refundable.
+          </p>
+          <p class="mt-3">Save this page's link — it always shows the latest status of your booking.</p>
+          {status !== 'pending' && (
+            <a href={`https://wa.me/${site.whatsapp}?text=${whatsappText}`} target="_blank" rel="noopener" class="mt-4 inline-flex items-center gap-2 text-ink underline underline-offset-4">
+              <Icon name="lucide:message-circle" class="size-4" aria-hidden="true" /> Message us on WhatsApp
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('button.copy').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(btn.dataset.copy!);
+      btn.classList.add('text-forest');
+      btn.setAttribute('aria-label', 'Copied');
+    }),
+  );
+</script>

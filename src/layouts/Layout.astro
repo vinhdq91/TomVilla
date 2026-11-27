@@ -8,6 +8,8 @@ import Footer from '../components/Footer.astro';
 interface Props {
   title?: string;
   description?: string;
+  /** Keep this page out of Google (private pages like a guest's booking). */
+  noindex?: boolean;
 }
 
 const site = (await getEntry('site', 'site'))!.data;
@@ -37,7 +39,7 @@ const structuredData = {
     <title>{title}</title>
     <meta name="description" content={description} />
     {canonical && <link rel="canonical" href={canonical} />}
-    {site.hideFromSearch && <meta name="robots" content="noindex, nofollow" />}
+    {(site.hideFromSearch || Astro.props.noindex) && <meta name="robots" content="noindex, nofollow" />}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />

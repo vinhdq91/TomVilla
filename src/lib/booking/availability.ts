@@ -1,8 +1,5 @@
-// Single source of truth for booked dates.
-//
-// v1: reads iCal feeds exported from Airbnb / Booking.com.
-// v2: will also read direct bookings from Cloudflare D1 — only this file changes,
-//     the calendar UI keeps calling getBookedDates().
+// Dates booked on other platforms (Airbnb, Booking.com...), read from their iCal links.
+// Direct bookings and owner blocks come from the database (see ./server.ts).
 
 export interface BookedRange {
   /** First booked night, YYYY-MM-DD */
@@ -17,14 +14,16 @@ export interface IcalFeed {
   url: string;
 }
 
-export async function getBookedDates(feeds: IcalFeed[]): Promise<BookedRange[]> {
+export async function getFeedBookings(feeds: IcalFeed[]): Promise<BookedRange[]> {
   const results = await Promise.allSettled(
     feeds.map(async (feed) => {
-      const res = await fetch(feed.url);
+      // Cloudflare caches each feed for 5 minutes so busy pages don't hammer the platforms.
+      const res = await fetch(feed.url, { cf: { cacheTtl: 300, cacheEverything: true } } as RequestInit);
       if (!res.ok) throw new Error(`${feed.source}: HTTP ${res.status}`);
       return parseIcal(await res.text(), feed.source);
     }),
   );
+  for (const r of results) if (r.status === 'rejected') console.error('Calendar sync failed:', r.reason);
   return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
 }
 
