@@ -14,7 +14,7 @@
 		{
 			"binding": "DB",
 			"database_name": "tomvilla",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "9a704778-f5ec-4f63-a0e3-006d3c61e7ab",
 			"migrations_dir": "migrations"
 		}
 	],
